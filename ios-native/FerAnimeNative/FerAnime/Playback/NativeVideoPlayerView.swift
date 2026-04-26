@@ -20,7 +20,7 @@ struct NativeVideoPlayerView: View {
         }
         .task(id: stream.url) {
             guard let url = URL(string: stream.url) else { return }
-            let options = stream.headers.map { [AVURLAssetHTTPHeaderFieldsKey: $0] as [String: Any] }
+            let options = stream.headers.map { ["AVURLAssetHTTPHeaderFieldsKey": $0] as [String: Any] }
             let asset = AVURLAsset(url: url, options: options)
             player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
             player?.play()
