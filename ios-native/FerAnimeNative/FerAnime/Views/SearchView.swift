@@ -15,6 +15,7 @@ struct SearchView: View {
                 CinematicBackground()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
+                        FrostedHeader(title: "Search", subtitle: sourceId)
                         searchBar
                         sourcePicker
                         chips
@@ -24,8 +25,7 @@ struct SearchView: View {
                     .padding(.bottom, 110)
                 }
             }
-            .navigationTitle("Search")
-            .navigationBarTitleDisplayMode(.large)
+            .toolbar(.hidden, for: .navigationBar)
             .onChange(of: query) { _, _ in scheduleSearch() }
             .onChange(of: sourceId) { _, _ in scheduleSearch() }
             .navigationDestination(for: Anime.self) { AnimeDetailView(anime: $0) }
@@ -53,18 +53,20 @@ struct SearchView: View {
     }
 
     private var sourcePicker: some View {
-        HStack(spacing: 10) {
-            ForEach(sources, id: \.0) { source in
-                Button { sourceId = source.0 } label: {
-                    Text(source.1)
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(sourceId == source.0 ? .white : Theme.secondary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 9)
-                        .background(sourceId == source.0 ? Theme.panelStrong : Color.white.opacity(0.06), in: Capsule())
-                        .overlay(Capsule().stroke(sourceId == source.0 ? Theme.strokeBright : Theme.stroke, lineWidth: 1))
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(sources, id: \.0) { source in
+                    Button { sourceId = source.0 } label: {
+                        Text(source.1)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(sourceId == source.0 ? .white : Theme.secondary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 9)
+                            .background(sourceId == source.0 ? Theme.panelStrong : Color.white.opacity(0.06), in: Capsule())
+                            .overlay(Capsule().stroke(sourceId == source.0 ? Theme.strokeBright : Theme.stroke, lineWidth: 1))
+                    }
+                    .buttonStyle(PressScaleStyle())
                 }
-                .buttonStyle(PressScaleStyle())
             }
         }
     }
@@ -92,8 +94,10 @@ struct SearchView: View {
                     AnimePosterCard(anime: anime, width: 150, height: 226)
                 }
                 .buttonStyle(PressScaleStyle())
+                .transition(.scale(scale: 0.94).combined(with: .opacity))
             }
         }
+        .animation(.spring(response: 0.45, dampingFraction: 0.82), value: results)
     }
 
     private func scheduleSearch() {
@@ -109,4 +113,3 @@ struct SearchView: View {
         }
     }
 }
-

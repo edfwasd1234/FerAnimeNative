@@ -141,6 +141,11 @@ struct AnimeDetailView: View {
                 }
                 .buttonStyle(PressScaleStyle())
                 .padding(.horizontal, 18)
+                .scrollTransition(.interactive, axis: .vertical) { content, phase in
+                    content
+                        .scaleEffect(phase.isIdentity ? 1 : 0.96)
+                        .opacity(phase.isIdentity ? 1 : 0.68)
+                }
             }
         }
     }

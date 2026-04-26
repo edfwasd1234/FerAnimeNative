@@ -7,6 +7,7 @@ struct HomeView: View {
     @State private var new: [Anime] = []
     @State private var action: [Anime] = []
     @State private var loading = true
+    @State private var appeared = false
 
     var body: some View {
         NavigationStack {
@@ -15,20 +16,26 @@ struct HomeView: View {
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 30) {
+                        FrostedHeader(title: "Watch", subtitle: "Now streaming")
                         hero
                         AnimeRail(title: "Continue Watching", items: Array(recommended.prefix(6)), compact: true)
                         AnimeRail(title: "Trending", items: trending)
                         AnimeRail(title: "New Episodes", items: new)
                         AnimeRail(title: "Action", items: action)
                     }
+                    .padding(.top, 4)
                     .padding(.bottom, 110)
                 }
                 .refreshable { await load() }
             }
-            .navigationTitle("Watch")
-            .navigationBarTitleDisplayMode(.large)
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Anime.self) { AnimeDetailView(anime: $0) }
-            .task { await load() }
+            .task {
+                withAnimation(.spring(response: 0.7, dampingFraction: 0.82)) {
+                    appeared = true
+                }
+                await load()
+            }
         }
     }
 
@@ -88,7 +95,9 @@ struct HomeView: View {
                 }
             }
         }
-        .frame(height: 500)
+        .frame(height: 470)
+        .offset(y: appeared ? 0 : 24)
+        .opacity(appeared ? 1 : 0)
     }
 
     private func load() async {
@@ -139,6 +148,11 @@ struct AnimeRail: View {
                             AnimePosterCard(anime: anime, width: compact ? 210 : 144, height: compact ? 124 : 214)
                         }
                         .buttonStyle(PressScaleStyle())
+                        .scrollTransition(.interactive, axis: .horizontal) { content, phase in
+                            content
+                                .scaleEffect(phase.isIdentity ? 1 : 0.92)
+                                .opacity(phase.isIdentity ? 1 : 0.72)
+                        }
                     }
                 }
                 .padding(.horizontal, 18)
@@ -176,11 +190,7 @@ struct AnimePosterCard: View {
 struct CinematicBackground: View {
     var body: some View {
         ZStack {
-            Theme.background.ignoresSafeArea()
-            RadialGradient(colors: [Theme.violet.opacity(0.28), .clear], center: .topLeading, startRadius: 20, endRadius: 520)
-                .ignoresSafeArea()
-            RadialGradient(colors: [Theme.cyan.opacity(0.20), .clear], center: .bottomTrailing, startRadius: 20, endRadius: 460)
-                .ignoresSafeArea()
+            PremiumBackdrop()
         }
     }
 }

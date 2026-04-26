@@ -12,15 +12,16 @@ struct SettingsView: View {
                 CinematicBackground()
                 ScrollView {
                     VStack(spacing: 18) {
+                        FrostedHeader(title: "Settings", subtitle: "Native control")
                         resolverSection
                         togglesSection
                         aboutSection
                     }
-                    .padding(18)
+                    .padding(.horizontal, 18)
                     .padding(.bottom, 110)
                 }
             }
-            .navigationTitle("Settings")
+            .toolbar(.hidden, for: .navigationBar)
             .onAppear { hostDraft = appState.resolverHost }
         }
     }
@@ -91,8 +92,8 @@ struct ToggleRow: View {
             Toggle("", isOn: $isOn)
                 .labelsHidden()
                 .tint(Theme.accent)
+                .onChange(of: isOn) { _, _ in Haptics.impact(.light) }
         }
         .padding(10)
     }
 }
-

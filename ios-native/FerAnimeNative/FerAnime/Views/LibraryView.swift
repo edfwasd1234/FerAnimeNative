@@ -6,6 +6,7 @@ struct LibraryView: View {
             ZStack {
                 CinematicBackground()
                 VStack(spacing: 18) {
+                    FrostedHeader(title: "Library", subtitle: "Saved shows")
                     LiquidGlass(cornerRadius: 30, glow: Theme.cyan.opacity(0.18)) {
                         VStack(spacing: 12) {
                             Image(systemName: "rectangle.stack.badge.play.fill")
@@ -24,10 +25,9 @@ struct LibraryView: View {
                     .padding(.horizontal, 18)
                     Spacer()
                 }
-                .padding(.top, 40)
+                .padding(.top, 8)
             }
-            .navigationTitle("Library")
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
 }
-

@@ -18,6 +18,7 @@ struct RootView: View {
         .tint(Theme.accent)
         .toolbarBackground(.ultraThinMaterial, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+        .background(Theme.background)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
-
