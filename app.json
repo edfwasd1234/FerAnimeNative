@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "FerAnime",
+    "slug": "feranime",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "feranime",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.feranime.app"
+    },
+    "android": {
+      "package": "com.feranime.app"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-video",
+      "expo-font",
+      "expo-router"
+    ]
+  }
+}
