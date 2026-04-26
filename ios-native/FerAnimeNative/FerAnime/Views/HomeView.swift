@@ -33,56 +33,62 @@ struct HomeView: View {
     }
 
     private var hero: some View {
-        Group {
-            if let anime = recommended.first ?? trending.first {
-                NavigationLink(value: anime) {
-                    ZStack(alignment: .bottomLeading) {
-                        PosterImage(url: URL(string: anime.banner ?? anime.cover ?? ""), cornerRadius: 34)
-                            .frame(height: 520)
-                            .overlay {
-                                LinearGradient(colors: [.clear, Theme.background.opacity(0.25), Theme.background.opacity(0.96)], startPoint: .top, endPoint: .bottom)
-                            }
+        GeometryReader { proxy in
+            let heroHeight = min(max(proxy.size.height * 0.58, 360), 480)
 
-                        VStack(alignment: .leading, spacing: 14) {
-                            HStack(spacing: 8) {
-                                Label(String(format: "%.1f", anime.score ?? 8.7), systemImage: "star.fill")
-                                Text(anime.year.map(String.init) ?? "Now")
-                            }
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.white.opacity(0.86))
-
-                            Text(anime.title)
-                                .font(.system(size: 42, weight: .black, design: .rounded))
-                                .foregroundStyle(.white)
-                                .lineLimit(3)
-
-                            LiquidGlass(cornerRadius: 24, glow: Theme.accent.opacity(0.35)) {
-                                HStack(spacing: 10) {
-                                    Image(systemName: "play.fill")
-                                    Text("Play")
+            Group {
+                if let anime = recommended.first ?? trending.first {
+                    NavigationLink(value: anime) {
+                        ZStack(alignment: .bottomLeading) {
+                            PosterImage(url: URL(string: anime.banner ?? anime.cover ?? ""), cornerRadius: 30)
+                                .frame(height: heroHeight)
+                                .overlay {
+                                    LinearGradient(colors: [.clear, Theme.background.opacity(0.25), Theme.background.opacity(0.96)], startPoint: .top, endPoint: .bottom)
                                 }
-                                .font(.headline.weight(.bold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 24)
-                                .padding(.vertical, 14)
+
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(spacing: 8) {
+                                    Label(String(format: "%.1f", anime.score ?? 8.7), systemImage: "star.fill")
+                                    Text(anime.year.map(String.init) ?? "Now")
+                                }
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.white.opacity(0.86))
+
+                                Text(anime.title)
+                                    .font(.system(size: 34, weight: .black, design: .rounded))
+                                    .minimumScaleFactor(0.78)
+                                    .foregroundStyle(.white)
+                                    .lineLimit(3)
+
+                                LiquidGlass(cornerRadius: 24, glow: Theme.accent.opacity(0.35)) {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "play.fill")
+                                        Text("Play")
+                                    }
+                                    .font(.headline.weight(.bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 24)
+                                    .padding(.vertical, 14)
+                                }
+                                .frame(maxWidth: 170)
                             }
-                            .frame(maxWidth: 170)
+                            .padding(22)
                         }
-                        .padding(24)
+                        .padding(.horizontal, 16)
+                    }
+                    .buttonStyle(PressScaleStyle())
+                } else {
+                    LiquidGlass {
+                        ProgressView("Loading anime")
+                            .tint(.white)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, minHeight: 340)
                     }
                     .padding(.horizontal, 16)
                 }
-                .buttonStyle(PressScaleStyle())
-            } else {
-                LiquidGlass {
-                    ProgressView("Loading anime")
-                        .tint(.white)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, minHeight: 420)
-                }
-                .padding(.horizontal, 16)
             }
         }
+        .frame(height: 500)
     }
 
     private func load() async {
@@ -130,7 +136,7 @@ struct AnimeRail: View {
                 HStack(spacing: 14) {
                     ForEach(items) { anime in
                         NavigationLink(value: anime) {
-                            AnimePosterCard(anime: anime, width: compact ? 220 : 156, height: compact ? 132 : 232)
+                            AnimePosterCard(anime: anime, width: compact ? 210 : 144, height: compact ? 124 : 214)
                         }
                         .buttonStyle(PressScaleStyle())
                     }

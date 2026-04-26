@@ -7,17 +7,17 @@ struct NativeVideoPlayerView: View {
 
     var body: some View {
         ZStack {
-            Theme.background.ignoresSafeArea()
+            Theme.background
 
             if let player {
                 VideoPlayer(player: player)
-                    .ignoresSafeArea()
                     .onDisappear { player.pause() }
             } else {
                 ProgressView()
                     .tint(.white)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: stream.url) {
             guard let url = URL(string: stream.url) else { return }
             let options = stream.headers.map { ["AVURLAssetHTTPHeaderFieldsKey": $0] as [String: Any] }

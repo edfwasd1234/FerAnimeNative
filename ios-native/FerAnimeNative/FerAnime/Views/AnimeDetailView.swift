@@ -27,52 +27,58 @@ struct AnimeDetailView: View {
     }
 
     private var hero: some View {
-        ZStack(alignment: .bottomLeading) {
-            PosterImage(url: URL(string: display.banner ?? display.cover ?? ""), cornerRadius: 0)
-                .frame(height: 560)
-                .clipped()
-                .overlay {
-                    LinearGradient(colors: [.clear, Theme.background.opacity(0.20), Theme.background], startPoint: .top, endPoint: .bottom)
-                }
+        GeometryReader { proxy in
+            let heroHeight = min(max(proxy.size.height * 0.58, 390), 500)
 
-            VStack(alignment: .leading, spacing: 16) {
-                Text(display.title)
-                    .font(.system(size: 40, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                    .lineLimit(4)
-
-                HStack(spacing: 10) {
-                    if let score = display.score {
-                        Label(String(format: "%.1f", score), systemImage: "star.fill")
+            ZStack(alignment: .bottomLeading) {
+                PosterImage(url: URL(string: display.banner ?? display.cover ?? ""), cornerRadius: 0)
+                    .frame(height: heroHeight)
+                    .clipped()
+                    .overlay {
+                        LinearGradient(colors: [.clear, Theme.background.opacity(0.20), Theme.background], startPoint: .top, endPoint: .bottom)
                     }
-                    if let year = display.year {
-                        Text(String(year))
-                    }
-                    Text(sourceId)
-                }
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.white.opacity(0.78))
 
-                if let first = episodes.first {
-                    NavigationLink {
-                        PlayerView(anime: display, episode: first)
-                    } label: {
-                        LiquidGlass(cornerRadius: 24, glow: Theme.accent.opacity(0.44)) {
-                            HStack(spacing: 10) {
-                                Image(systemName: "play.fill")
-                                Text("Play")
-                            }
-                            .font(.title3.weight(.bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 30)
-                            .padding(.vertical, 15)
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(display.title)
+                        .font(.system(size: 34, weight: .black, design: .rounded))
+                        .minimumScaleFactor(0.75)
+                        .foregroundStyle(.white)
+                        .lineLimit(4)
+
+                    HStack(spacing: 10) {
+                        if let score = display.score {
+                            Label(String(format: "%.1f", score), systemImage: "star.fill")
                         }
+                        if let year = display.year {
+                            Text(String(year))
+                        }
+                        Text(sourceId)
                     }
-                    .buttonStyle(PressScaleStyle())
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.78))
+
+                    if let first = episodes.first {
+                        NavigationLink {
+                            PlayerView(anime: display, episode: first)
+                        } label: {
+                            LiquidGlass(cornerRadius: 24, glow: Theme.accent.opacity(0.44)) {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "play.fill")
+                                    Text("Play")
+                                }
+                                .font(.title3.weight(.bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 30)
+                                .padding(.vertical, 15)
+                            }
+                        }
+                        .buttonStyle(PressScaleStyle())
+                    }
                 }
+                .padding(20)
             }
-            .padding(22)
         }
+        .frame(height: 520)
     }
 
     private var synopsis: some View {
@@ -111,7 +117,7 @@ struct AnimeDetailView: View {
                         HStack(spacing: 14) {
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
                                 .fill(Theme.aurora.opacity(0.40))
-                                .frame(width: 112, height: 64)
+                                .frame(width: 92, height: 58)
                                 .overlay {
                                     Image(systemName: "play.fill")
                                         .foregroundStyle(.white)
