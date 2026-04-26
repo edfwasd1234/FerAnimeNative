@@ -20,9 +20,12 @@ struct NativeVideoPlayerView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: stream.url) {
             guard let url = URL(string: stream.url) else { return }
+            AudioSession.configureForPlayback()
             let options = stream.headers.map { ["AVURLAssetHTTPHeaderFieldsKey": $0] as [String: Any] }
             let asset = AVURLAsset(url: url, options: options)
             player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
+            player?.isMuted = false
+            player?.volume = 1.0
             player?.play()
         }
     }

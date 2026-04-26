@@ -4,6 +4,10 @@ import SwiftUI
 struct FerAnimeApp: App {
     @StateObject private var appState = AppState()
 
+    init() {
+        AudioSession.configureForPlayback()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -12,4 +16,3 @@ struct FerAnimeApp: App {
         }
     }
 }
-
