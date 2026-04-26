@@ -15,12 +15,8 @@ struct SearchView: View {
                 CinematicBackground()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
-                        FrostedHeader(title: "Search", subtitle: sourceId)
-                            .glassAppear()
-                        searchBar
-                            .glassAppear(delay: 0.05)
                         sourcePicker
-                            .glassAppear(delay: 0.08)
+                        .glassAppear(delay: 0.08)
                         chips
                             .glassAppear(delay: 0.11)
                         resultsGrid
@@ -31,31 +27,11 @@ struct SearchView: View {
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationTitle("Search")
+            .searchable(text: $query, prompt: "Anime, episode, season")
             .onChange(of: query) { _, _ in scheduleSearch() }
             .onChange(of: sourceId) { _, _ in scheduleSearch() }
             .navigationDestination(for: Anime.self) { AnimeDetailView(anime: $0) }
-        }
-    }
-
-    private var searchBar: some View {
-        LiquidGlass(cornerRadius: 20, glow: Theme.appleBlue.opacity(0.14)) {
-            HStack(spacing: 12) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(Theme.secondary)
-                TextField("Anime, episode, season", text: $query)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .foregroundStyle(.white)
-                if !query.isEmpty {
-                    Button { query = "" } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.white.opacity(0.55))
-                    }
-                }
-            }
-            .frame(height: 52)
-            .padding(.horizontal, 16)
         }
     }
 

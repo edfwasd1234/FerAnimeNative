@@ -16,9 +16,5 @@ struct RootView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }
         .tint(Theme.appleBlue)
-        .toolbarBackground(.ultraThinMaterial, for: .tabBar)
-        .toolbarBackground(.visible, for: .tabBar)
-        .background(Theme.background)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

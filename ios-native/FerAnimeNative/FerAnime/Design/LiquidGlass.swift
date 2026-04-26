@@ -90,6 +90,16 @@ struct LiquidButton: View {
     }
 }
 
+struct SystemPlayLabel: View {
+    var title = "Play"
+
+    var body: some View {
+        Label(title, systemImage: "play.fill")
+            .font(.callout.weight(.semibold))
+            .frame(maxWidth: .infinity)
+    }
+}
+
 struct FrostedHeader: View {
     var title: String
     var subtitle: String

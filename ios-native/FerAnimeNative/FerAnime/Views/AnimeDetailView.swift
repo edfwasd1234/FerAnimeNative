@@ -6,9 +6,11 @@ struct AnimeDetailView: View {
     @State private var details: Anime?
     @State private var episodes: [Episode] = []
     @State private var expanded = false
+    @State private var resolvedAnime: Anime?
 
     private var display: Anime { details ?? anime }
-    private var sourceId: String { display.sourceId ?? anime.sourceId ?? "anizone" }
+    private var playbackAnime: Anime { resolvedAnime ?? display }
+    private var sourceId: String { playbackAnime.sourceId ?? display.sourceId ?? anime.sourceId ?? "jikan" }
 
     var body: some View {
         ZStack {
@@ -63,20 +65,13 @@ struct AnimeDetailView: View {
 
                     if let first = episodes.first {
                         NavigationLink {
-                            PlayerView(anime: display, episode: first)
+                            PlayerView(anime: playbackAnime, episode: first)
                         } label: {
-                            LiquidGlass(cornerRadius: 18, glow: Theme.appleBlue.opacity(0.22)) {
-                                HStack(spacing: 10) {
-                                    Image(systemName: "play.fill")
-                                    Text("Play")
-                                }
-                                .font(.callout.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 22)
-                                .padding(.vertical, 12)
-                            }
+                            SystemPlayLabel()
                         }
-                        .buttonStyle(PressScaleStyle())
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .simultaneousGesture(TapGesture().onEnded { Haptics.impact(.medium) })
                     }
                 }
                 .padding(18)
@@ -115,7 +110,7 @@ struct AnimeDetailView: View {
 
             ForEach(episodes) { episode in
                 NavigationLink {
-                    PlayerView(anime: display, episode: episode)
+                    PlayerView(anime: playbackAnime, episode: episode)
                 } label: {
                     LiquidGlass(cornerRadius: 20, glow: Theme.appleBlue.opacity(0.08)) {
                         HStack(spacing: 14) {
@@ -155,8 +150,20 @@ struct AnimeDetailView: View {
     }
 
     private func load() async {
-        guard let sourceId = anime.sourceId else { return }
-        details = try? await appState.client.details(sourceId: sourceId, animeId: anime.id)
-        episodes = (try? await appState.client.episodes(sourceId: sourceId, animeId: anime.id)) ?? []
+        if let sourceId = anime.sourceId, sourceId != "jikan" {
+            details = try? await appState.client.details(sourceId: sourceId, animeId: anime.id)
+            episodes = (try? await appState.client.episodes(sourceId: sourceId, animeId: anime.id)) ?? []
+            return
+        }
+
+        for source in ["anizone", "animeheaven", "hianime"] {
+            guard let match = try? await appState.client.search(anime.title, sourceId: source).first else { continue }
+            let sourceEpisodes = (try? await appState.client.episodes(sourceId: source, animeId: match.id)) ?? []
+            if !sourceEpisodes.isEmpty {
+                resolvedAnime = match
+                episodes = sourceEpisodes
+                return
+            }
+        }
     }
 }

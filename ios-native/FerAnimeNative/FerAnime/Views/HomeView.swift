@@ -8,6 +8,7 @@ struct HomeView: View {
     @State private var action: [Anime] = []
     @State private var loading = true
     @State private var appeared = false
+    private let jikan = JikanClient()
 
     var body: some View {
         NavigationStack {
@@ -16,8 +17,6 @@ struct HomeView: View {
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 24) {
-                        FrostedHeader(title: "Watch", subtitle: "Now streaming")
-                            .glassAppear()
                         hero
                         AnimeRail(title: "Continue Watching", items: Array(recommended.prefix(6)), compact: true)
                             .glassAppear(delay: 0.08)
@@ -33,7 +32,7 @@ struct HomeView: View {
                 }
                 .refreshable { await load() }
             }
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationTitle("Watch")
             .navigationDestination(for: Anime.self) { AnimeDetailView(anime: $0) }
             .task {
                 withAnimation(.spring(response: 0.7, dampingFraction: 0.82)) {
@@ -73,23 +72,15 @@ struct HomeView: View {
                                     .foregroundStyle(.white)
                                     .lineLimit(3)
 
-                                LiquidGlass(cornerRadius: 18, glow: Theme.appleBlue.opacity(0.18)) {
-                                    HStack(spacing: 10) {
-                                        Image(systemName: "play.fill")
-                                        Text("Play")
-                                    }
-                                    .font(.callout.weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 12)
-                                }
+                                SystemPlayLabel()
                                 .frame(maxWidth: 140)
                             }
                             .padding(18)
                         }
                         .padding(.horizontal, 16)
                     }
-                    .buttonStyle(PressScaleStyle())
+                    .buttonStyle(.plain)
+                    .simultaneousGesture(TapGesture().onEnded { Haptics.impact(.medium) })
                 } else {
                     LiquidGlass {
                         ProgressView("Loading anime")
@@ -108,24 +99,12 @@ struct HomeView: View {
 
     private func load() async {
         loading = true
-        async let recommendedLoad = catalog("recommended")
-        async let trendingLoad = catalog("trending")
-        async let newLoad = catalog("new")
-        async let actionLoad = catalog("action")
-        recommended = await recommendedLoad
-        trending = await trendingLoad
-        new = await newLoad
-        action = await actionLoad
+        let catalogs = await jikan.homeCatalogs()
+        recommended = catalogs.recommended
+        trending = catalogs.trending
+        new = catalogs.new
+        action = catalogs.action
         loading = false
-    }
-
-    private func catalog(_ section: String) async -> [Anime] {
-        for source in ["anizone", "animeheaven", "hianime"] {
-            if let items = try? await appState.client.catalog(section: section, sourceId: source), !items.isEmpty {
-                return items
-            }
-        }
-        return []
     }
 }
 
