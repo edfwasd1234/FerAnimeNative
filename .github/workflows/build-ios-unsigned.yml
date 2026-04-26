@@ -1,0 +1,61 @@
+name: Build iOS Unsigned IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-ios:
+    name: Build unsigned iOS app
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios-native/FerAnimeNative
+        run: xcodegen generate
+
+      - name: Build unsigned app
+        working-directory: ios-native/FerAnimeNative
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project FerAnimeNative.xcodeproj \
+            -scheme FerAnimeNative \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package unsigned IPA
+        working-directory: ios-native/FerAnimeNative
+        run: |
+          set -euo pipefail
+          APP_PATH="build/Build/Products/Release-iphoneos/FerAnimeNative.app"
+          test -d "$APP_PATH"
+          rm -rf Payload FerAnimeNative-unsigned.ipa
+          mkdir Payload
+          cp -R "$APP_PATH" Payload/
+          zip -qry FerAnimeNative-unsigned.ipa Payload
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: FerAnimeNative-unsigned-ipa
+          path: ios-native/FerAnimeNative/FerAnimeNative-unsigned.ipa
+          if-no-files-found: error
+

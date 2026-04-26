@@ -22,7 +22,15 @@ targets:
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         TARGETED_DEVICE_FAMILY: "1"
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:
       - sdk: AVKit.framework
       - sdk: WebKit.framework
+schemes:
+  FerAnimeNative:
+    build:
+      targets:
+        FerAnimeNative: all
+    run:
+      config: Debug
+    archive:
+      config: Release
