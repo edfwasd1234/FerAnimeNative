@@ -19,26 +19,12 @@ struct LiquidGlass<Content: View>: View {
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [.white.opacity(0.14), .clear, .white.opacity(0.035)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .blendMode(.screen)
+                    .fill(.white.opacity(0.035))
                     .allowsHitTesting(false)
             }
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.28), Color.white.opacity(0.06), glow],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
+                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
             }
             .shadow(color: glow, radius: 18, x: 0, y: 10)
             .shadow(color: Color.black.opacity(0.28), radius: 18, x: 0, y: 12)
@@ -88,7 +74,7 @@ struct LiquidButton: View {
 
     var body: some View {
         Button(action: action) {
-            LiquidGlass(cornerRadius: 24, glow: Theme.accent.opacity(0.35)) {
+            LiquidGlass(cornerRadius: 20, glow: Theme.appleBlue.opacity(0.12)) {
                 HStack(spacing: 10) {
                     Image(systemName: systemImage)
                         .font(.headline)
@@ -113,7 +99,7 @@ struct FrostedHeader: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(subtitle.uppercased())
                     .font(.caption2.weight(.black))
-                    .foregroundStyle(Theme.cyan)
+                    .foregroundStyle(Theme.appleBlue)
                     .tracking(1.4)
                 Text(title)
                     .font(.system(size: 34, weight: .black, design: .rounded))
@@ -123,7 +109,7 @@ struct FrostedHeader: View {
             LiquidGlass(cornerRadius: 18, glow: Theme.appleBlue.opacity(0.12)) {
                 Image(systemName: "sparkles.tv.fill")
                     .font(.headline.weight(.semibold))
-                    .foregroundStyle(Theme.aurora)
+                    .foregroundStyle(Theme.appleBlue)
                     .frame(width: 42, height: 42)
             }
         }
@@ -133,31 +119,10 @@ struct FrostedHeader: View {
 }
 
 struct PremiumBackdrop: View {
-    @State private var shifted = false
-
     var body: some View {
         ZStack {
             Theme.background
-            LinearGradient(
-                colors: [
-                    Theme.background,
-                    Theme.appleBlue.opacity(shifted ? 0.18 : 0.10),
-                    Theme.violet.opacity(shifted ? 0.10 : 0.16),
-                    Theme.cyan.opacity(shifted ? 0.08 : 0.14),
-                    Theme.background,
-                    Theme.background
-                ],
-                startPoint: shifted ? .topTrailing : .topLeading,
-                endPoint: shifted ? .bottomLeading : .bottomTrailing
-            )
-            .animation(.easeInOut(duration: 7).repeatForever(autoreverses: true), value: shifted)
-            .onAppear { shifted = true }
-
-            LinearGradient(
-                colors: [.white.opacity(0.045), .clear, .black.opacity(0.34)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            Color.white.opacity(0.018)
         }
         .ignoresSafeArea()
     }
@@ -174,7 +139,7 @@ struct PosterImage: View {
                 image.resizable().scaledToFill()
             default:
                 ZStack {
-                    Theme.aurora.opacity(0.35)
+                    Color.secondary.opacity(0.18)
                     Image(systemName: "play.rectangle.fill")
                         .font(.largeTitle)
                         .foregroundStyle(.white.opacity(0.50))

@@ -55,7 +55,8 @@ struct HomeView: View {
                             PosterImage(url: URL(string: anime.banner ?? anime.cover ?? ""), cornerRadius: 28)
                                 .frame(height: heroHeight)
                                 .overlay {
-                                    LinearGradient(colors: [.clear, Theme.background.opacity(0.25), Theme.background.opacity(0.96)], startPoint: .top, endPoint: .bottom)
+                                    Rectangle()
+                                        .fill(.black.opacity(0.24))
                                 }
 
                             VStack(alignment: .leading, spacing: 12) {
@@ -176,7 +177,8 @@ struct AnimePosterCard: View {
             PosterImage(url: URL(string: anime.cover ?? anime.banner ?? ""), cornerRadius: 20)
                 .frame(width: width, height: height)
                 .overlay(alignment: .bottomLeading) {
-                    LinearGradient(colors: [.clear, .black.opacity(0.76)], startPoint: .top, endPoint: .bottom)
+                    Rectangle()
+                        .fill(.black.opacity(0.18))
                     Text(anime.subtitle ?? anime.sourceId ?? "")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.white.opacity(0.75))

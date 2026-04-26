@@ -12,7 +12,7 @@ struct LibraryView: View {
                         VStack(spacing: 12) {
                             Image(systemName: "rectangle.stack.badge.play.fill")
                                 .font(.system(size: 34, weight: .semibold))
-                                .foregroundStyle(Theme.aurora)
+                                .foregroundStyle(Theme.appleBlue)
                             Text("Library")
                                 .font(.title3.weight(.semibold))
                                 .foregroundStyle(.white)

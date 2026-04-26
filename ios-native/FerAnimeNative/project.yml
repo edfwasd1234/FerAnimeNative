@@ -15,8 +15,11 @@ targets:
       - FerAnime
     info:
       path: FerAnime/Info.plist
+      properties:
+        UILaunchStoryboardName: LaunchScreen
     settings:
       base:
+        INFOPLIST_FILE: FerAnime/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.feranime.native
         PRODUCT_NAME: FerAnimeNative
         MARKETING_VERSION: "1.0"

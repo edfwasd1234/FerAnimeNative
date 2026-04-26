@@ -14,10 +14,5 @@ enum Theme {
     static let pink = Color(red: 1.0, green: 0.38, blue: 0.62)
     static let violet = Color(red: 0.56, green: 0.48, blue: 1.0)
     static let appleBlue = Color(red: 0.0, green: 0.48, blue: 1.0)
-
-    static let aurora = LinearGradient(
-        colors: [accent, pink, violet, cyan],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static let aurora = appleBlue
 }

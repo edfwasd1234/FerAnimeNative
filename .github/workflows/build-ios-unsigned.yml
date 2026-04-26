@@ -39,7 +39,17 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
+            INFOPLIST_KEY_UILaunchStoryboardName=LaunchScreen \
             build
+
+      - name: Verify full-screen launch metadata
+        working-directory: ios-native/FerAnimeNative
+        run: |
+          set -euo pipefail
+          APP_PLIST="build/Build/Products/Release-iphoneos/FerAnimeNative.app/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :UILaunchStoryboardName" "$APP_PLIST"
+          test "$(/usr/libexec/PlistBuddy -c "Print :UILaunchStoryboardName" "$APP_PLIST")" = "LaunchScreen"
+          test -d "build/Build/Products/Release-iphoneos/FerAnimeNative.app/LaunchScreen.storyboardc"
 
       - name: Package unsigned IPA
         working-directory: ios-native/FerAnimeNative

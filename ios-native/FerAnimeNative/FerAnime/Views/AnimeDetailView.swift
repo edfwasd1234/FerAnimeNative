@@ -38,7 +38,8 @@ struct AnimeDetailView: View {
                     .frame(height: heroHeight)
                     .clipped()
                     .overlay {
-                        LinearGradient(colors: [.clear, Theme.background.opacity(0.20), Theme.background], startPoint: .top, endPoint: .bottom)
+                        Rectangle()
+                            .fill(.black.opacity(0.24))
                     }
 
                 VStack(alignment: .leading, spacing: 14) {
@@ -100,7 +101,7 @@ struct AnimeDetailView: View {
                 withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) { expanded.toggle() }
             }
             .font(.callout.weight(.bold))
-            .foregroundStyle(Theme.cyan)
+            .foregroundStyle(Theme.appleBlue)
         }
         .padding(.horizontal, 18)
     }
@@ -116,10 +117,10 @@ struct AnimeDetailView: View {
                 NavigationLink {
                     PlayerView(anime: display, episode: episode)
                 } label: {
-                    LiquidGlass(cornerRadius: 20, glow: Theme.violet.opacity(0.10)) {
+                    LiquidGlass(cornerRadius: 20, glow: Theme.appleBlue.opacity(0.08)) {
                         HStack(spacing: 14) {
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(Theme.aurora.opacity(0.40))
+                                .fill(Color.secondary.opacity(0.18))
                                 .frame(width: 92, height: 58)
                                 .overlay {
                                     Image(systemName: "play.fill")
