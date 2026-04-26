@@ -10,9 +10,10 @@ enum Theme {
     static let secondary = Color.white.opacity(0.70)
     static let tertiary = Color.white.opacity(0.48)
     static let accent = Color(red: 1.0, green: 0.38, blue: 0.16)
-    static let cyan = Color(red: 0.18, green: 0.78, blue: 1.0)
-    static let pink = Color(red: 1.0, green: 0.22, blue: 0.55)
-    static let violet = Color(red: 0.52, green: 0.38, blue: 1.0)
+    static let cyan = Color(red: 0.35, green: 0.78, blue: 1.0)
+    static let pink = Color(red: 1.0, green: 0.38, blue: 0.62)
+    static let violet = Color(red: 0.56, green: 0.48, blue: 1.0)
+    static let appleBlue = Color(red: 0.0, green: 0.48, blue: 1.0)
 
     static let aurora = LinearGradient(
         colors: [accent, pink, violet, cyan],
@@ -20,4 +21,3 @@ enum Theme {
         endPoint: .bottomTrailing
     )
 }
-

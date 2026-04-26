@@ -15,16 +15,21 @@ struct HomeView: View {
                 CinematicBackground()
 
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 30) {
+                    VStack(alignment: .leading, spacing: 24) {
                         FrostedHeader(title: "Watch", subtitle: "Now streaming")
+                            .glassAppear()
                         hero
                         AnimeRail(title: "Continue Watching", items: Array(recommended.prefix(6)), compact: true)
+                            .glassAppear(delay: 0.08)
                         AnimeRail(title: "Trending", items: trending)
+                            .glassAppear(delay: 0.12)
                         AnimeRail(title: "New Episodes", items: new)
+                            .glassAppear(delay: 0.16)
                         AnimeRail(title: "Action", items: action)
+                            .glassAppear(delay: 0.20)
                     }
-                    .padding(.top, 4)
-                    .padding(.bottom, 110)
+                    .padding(.top, 8)
+                    .padding(.bottom, 92)
                 }
                 .refreshable { await load() }
             }
@@ -41,13 +46,13 @@ struct HomeView: View {
 
     private var hero: some View {
         GeometryReader { proxy in
-            let heroHeight = min(max(proxy.size.height * 0.58, 360), 480)
+            let heroHeight = min(max(proxy.size.height * 0.62, 300), 340)
 
             Group {
                 if let anime = recommended.first ?? trending.first {
                     NavigationLink(value: anime) {
                         ZStack(alignment: .bottomLeading) {
-                            PosterImage(url: URL(string: anime.banner ?? anime.cover ?? ""), cornerRadius: 30)
+                            PosterImage(url: URL(string: anime.banner ?? anime.cover ?? ""), cornerRadius: 28)
                                 .frame(height: heroHeight)
                                 .overlay {
                                     LinearGradient(colors: [.clear, Theme.background.opacity(0.25), Theme.background.opacity(0.96)], startPoint: .top, endPoint: .bottom)
@@ -62,24 +67,24 @@ struct HomeView: View {
                                 .foregroundStyle(.white.opacity(0.86))
 
                                 Text(anime.title)
-                                    .font(.system(size: 34, weight: .black, design: .rounded))
+                                    .font(.system(size: 30, weight: .bold, design: .rounded))
                                     .minimumScaleFactor(0.78)
                                     .foregroundStyle(.white)
                                     .lineLimit(3)
 
-                                LiquidGlass(cornerRadius: 24, glow: Theme.accent.opacity(0.35)) {
+                                LiquidGlass(cornerRadius: 18, glow: Theme.appleBlue.opacity(0.18)) {
                                     HStack(spacing: 10) {
                                         Image(systemName: "play.fill")
                                         Text("Play")
                                     }
-                                    .font(.headline.weight(.bold))
+                                    .font(.callout.weight(.semibold))
                                     .foregroundStyle(.white)
-                                    .padding(.horizontal, 24)
-                                    .padding(.vertical, 14)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 12)
                                 }
-                                .frame(maxWidth: 170)
+                                .frame(maxWidth: 140)
                             }
-                            .padding(22)
+                            .padding(18)
                         }
                         .padding(.horizontal, 16)
                     }
@@ -95,7 +100,7 @@ struct HomeView: View {
                 }
             }
         }
-        .frame(height: 470)
+        .frame(height: 360)
         .offset(y: appeared ? 0 : 24)
         .opacity(appeared ? 1 : 0)
     }
@@ -132,12 +137,12 @@ struct AnimeRail: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text(title)
-                    .font(.title2.weight(.bold))
+                    .font(.headline.weight(.semibold))
                     .foregroundStyle(.white)
                 Spacer()
                 Text("See All")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.cyan)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Theme.appleBlue)
             }
             .padding(.horizontal, 18)
 
@@ -145,7 +150,7 @@ struct AnimeRail: View {
                 HStack(spacing: 14) {
                     ForEach(items) { anime in
                         NavigationLink(value: anime) {
-                            AnimePosterCard(anime: anime, width: compact ? 210 : 144, height: compact ? 124 : 214)
+                            AnimePosterCard(anime: anime, width: compact ? 198 : 132, height: compact ? 112 : 196)
                         }
                         .buttonStyle(PressScaleStyle())
                         .scrollTransition(.interactive, axis: .horizontal) { content, phase in
@@ -168,7 +173,7 @@ struct AnimePosterCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            PosterImage(url: URL(string: anime.cover ?? anime.banner ?? ""), cornerRadius: 24)
+            PosterImage(url: URL(string: anime.cover ?? anime.banner ?? ""), cornerRadius: 20)
                 .frame(width: width, height: height)
                 .overlay(alignment: .bottomLeading) {
                     LinearGradient(colors: [.clear, .black.opacity(0.76)], startPoint: .top, endPoint: .bottom)
@@ -179,7 +184,7 @@ struct AnimePosterCard: View {
                 }
 
             Text(anime.title)
-                .font(.subheadline.weight(.bold))
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(.white)
                 .lineLimit(2)
                 .frame(width: width, alignment: .leading)

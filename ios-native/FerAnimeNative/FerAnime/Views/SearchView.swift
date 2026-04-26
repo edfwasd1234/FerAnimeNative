@@ -16,14 +16,20 @@ struct SearchView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
                         FrostedHeader(title: "Search", subtitle: sourceId)
+                            .glassAppear()
                         searchBar
+                            .glassAppear(delay: 0.05)
                         sourcePicker
+                            .glassAppear(delay: 0.08)
                         chips
+                            .glassAppear(delay: 0.11)
                         resultsGrid
                     }
-                    .padding(.horizontal, 18)
-                    .padding(.bottom, 110)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 92)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             .toolbar(.hidden, for: .navigationBar)
             .onChange(of: query) { _, _ in scheduleSearch() }
@@ -33,7 +39,7 @@ struct SearchView: View {
     }
 
     private var searchBar: some View {
-        LiquidGlass(cornerRadius: 24, glow: Theme.cyan.opacity(0.24)) {
+        LiquidGlass(cornerRadius: 20, glow: Theme.appleBlue.opacity(0.14)) {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(Theme.secondary)
@@ -48,7 +54,8 @@ struct SearchView: View {
                     }
                 }
             }
-            .padding(18)
+            .frame(height: 52)
+            .padding(.horizontal, 16)
         }
     }
 
@@ -91,7 +98,7 @@ struct SearchView: View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 20) {
             ForEach(results) { anime in
                 NavigationLink(value: anime) {
-                    AnimePosterCard(anime: anime, width: 150, height: 226)
+                    AnimePosterCard(anime: anime, width: 146, height: 214)
                 }
                 .buttonStyle(PressScaleStyle())
                 .transition(.scale(scale: 0.94).combined(with: .opacity))

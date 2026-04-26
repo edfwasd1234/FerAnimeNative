@@ -10,50 +10,38 @@ enum Haptics {
 }
 
 struct LiquidGlass<Content: View>: View {
-    var cornerRadius: CGFloat = 28
-    var glow: Color = Theme.cyan.opacity(0.20)
+    var cornerRadius: CGFloat = 22
+    var glow: Color = Theme.appleBlue.opacity(0.12)
     @ViewBuilder var content: Content
-    @State private var sheenOffset: CGFloat = -0.9
 
     var body: some View {
         content
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay {
-                GeometryReader { proxy in
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [.clear, .white.opacity(0.28), .clear],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [.white.opacity(0.14), .clear, .white.opacity(0.035)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
-                        .frame(width: max(proxy.size.width * 0.28, 72), height: proxy.size.height * 1.8)
-                        .rotationEffect(.degrees(24))
-                        .offset(x: proxy.size.width * sheenOffset, y: -proxy.size.height * 0.35)
-                        .blendMode(.screen)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                .allowsHitTesting(false)
+                    )
+                    .blendMode(.screen)
+                    .allowsHitTesting(false)
             }
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(
                         LinearGradient(
-                            colors: [Color.white.opacity(0.45), Color.white.opacity(0.10), glow],
+                            colors: [Color.white.opacity(0.28), Color.white.opacity(0.06), glow],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
                         lineWidth: 1
                     )
             }
-            .shadow(color: glow, radius: 24, x: 0, y: 16)
-            .shadow(color: Color.black.opacity(0.35), radius: 30, x: 0, y: 20)
-            .onAppear {
-                withAnimation(.easeInOut(duration: 3.8).repeatForever(autoreverses: false)) {
-                    sheenOffset = 1.25
-                }
-            }
+            .shadow(color: glow, radius: 18, x: 0, y: 10)
+            .shadow(color: Color.black.opacity(0.28), radius: 18, x: 0, y: 12)
     }
 }
 
@@ -66,6 +54,30 @@ struct PressScaleStyle: ButtonStyle {
             .onChange(of: configuration.isPressed) { _, isPressed in
                 if isPressed { Haptics.impact() }
             }
+    }
+}
+
+struct GlassAppear: ViewModifier {
+    let delay: Double
+    @State private var visible = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(visible ? 1 : 0)
+            .blur(radius: visible ? 0 : 10)
+            .offset(y: visible ? 0 : 16)
+            .scaleEffect(visible ? 1 : 0.985)
+            .onAppear {
+                withAnimation(.spring(response: 0.56, dampingFraction: 0.86).delay(delay)) {
+                    visible = true
+                }
+            }
+    }
+}
+
+extension View {
+    func glassAppear(delay: Double = 0) -> some View {
+        modifier(GlassAppear(delay: delay))
     }
 }
 
@@ -108,15 +120,15 @@ struct FrostedHeader: View {
                     .foregroundStyle(.white)
             }
             Spacer()
-            LiquidGlass(cornerRadius: 19, glow: Theme.accent.opacity(0.22)) {
+            LiquidGlass(cornerRadius: 18, glow: Theme.appleBlue.opacity(0.12)) {
                 Image(systemName: "sparkles.tv.fill")
-                    .font(.title3.weight(.bold))
+                    .font(.headline.weight(.semibold))
                     .foregroundStyle(Theme.aurora)
-                    .frame(width: 46, height: 46)
+                    .frame(width: 42, height: 42)
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 8)
+        .padding(.horizontal, 20)
+        .padding(.top, 6)
     }
 }
 
@@ -129,9 +141,10 @@ struct PremiumBackdrop: View {
             LinearGradient(
                 colors: [
                     Theme.background,
-                    Theme.violet.opacity(shifted ? 0.24 : 0.12),
+                    Theme.appleBlue.opacity(shifted ? 0.18 : 0.10),
+                    Theme.violet.opacity(shifted ? 0.10 : 0.16),
+                    Theme.cyan.opacity(shifted ? 0.08 : 0.14),
                     Theme.background,
-                    Theme.cyan.opacity(shifted ? 0.10 : 0.20),
                     Theme.background
                 ],
                 startPoint: shifted ? .topTrailing : .topLeading,

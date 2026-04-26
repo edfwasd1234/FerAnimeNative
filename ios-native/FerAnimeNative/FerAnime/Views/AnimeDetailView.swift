@@ -14,12 +14,15 @@ struct AnimeDetailView: View {
         ZStack {
             CinematicBackground()
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 20) {
                     hero
+                        .glassAppear()
                     synopsis
+                        .glassAppear(delay: 0.06)
                     episodeList
+                        .glassAppear(delay: 0.10)
                 }
-                .padding(.bottom, 110)
+                .padding(.bottom, 92)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -28,7 +31,7 @@ struct AnimeDetailView: View {
 
     private var hero: some View {
         GeometryReader { proxy in
-            let heroHeight = min(max(proxy.size.height * 0.58, 390), 500)
+            let heroHeight = min(max(proxy.size.height * 0.62, 320), 380)
 
             ZStack(alignment: .bottomLeading) {
                 PosterImage(url: URL(string: display.banner ?? display.cover ?? ""), cornerRadius: 0)
@@ -40,7 +43,7 @@ struct AnimeDetailView: View {
 
                 VStack(alignment: .leading, spacing: 14) {
                     Text(display.title)
-                        .font(.system(size: 34, weight: .black, design: .rounded))
+                        .font(.system(size: 31, weight: .bold, design: .rounded))
                         .minimumScaleFactor(0.75)
                         .foregroundStyle(.white)
                         .lineLimit(4)
@@ -61,34 +64,34 @@ struct AnimeDetailView: View {
                         NavigationLink {
                             PlayerView(anime: display, episode: first)
                         } label: {
-                            LiquidGlass(cornerRadius: 24, glow: Theme.accent.opacity(0.44)) {
+                            LiquidGlass(cornerRadius: 18, glow: Theme.appleBlue.opacity(0.22)) {
                                 HStack(spacing: 10) {
                                     Image(systemName: "play.fill")
                                     Text("Play")
                                 }
-                                .font(.title3.weight(.bold))
+                                .font(.callout.weight(.semibold))
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, 30)
-                                .padding(.vertical, 15)
+                                .padding(.horizontal, 22)
+                                .padding(.vertical, 12)
                             }
                         }
                         .buttonStyle(PressScaleStyle())
                     }
                 }
-                .padding(20)
+                .padding(18)
             }
         }
-        .frame(height: 520)
+        .frame(height: 400)
     }
 
     private var synopsis: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Story")
-                .font(.title2.weight(.bold))
+                .font(.headline.weight(.semibold))
                 .foregroundStyle(.white)
 
             Text(display.synopsis?.isEmpty == false ? display.synopsis! : "No synopsis available from this source yet.")
-                .font(.body)
+                .font(.callout)
                 .lineSpacing(4)
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(expanded ? nil : 4)
@@ -105,7 +108,7 @@ struct AnimeDetailView: View {
     private var episodeList: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Episodes")
-                .font(.title2.weight(.bold))
+                .font(.headline.weight(.semibold))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 18)
 
@@ -113,7 +116,7 @@ struct AnimeDetailView: View {
                 NavigationLink {
                     PlayerView(anime: display, episode: episode)
                 } label: {
-                    LiquidGlass(cornerRadius: 24, glow: Theme.violet.opacity(0.18)) {
+                    LiquidGlass(cornerRadius: 20, glow: Theme.violet.opacity(0.10)) {
                         HStack(spacing: 14) {
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
                                 .fill(Theme.aurora.opacity(0.40))
@@ -123,12 +126,12 @@ struct AnimeDetailView: View {
                                         .foregroundStyle(.white)
                                 }
 
-                            VStack(alignment: .leading, spacing: 5) {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text("Episode \(Int(episode.number))")
                                     .font(.caption.weight(.bold))
-                                    .foregroundStyle(Theme.cyan)
+                                    .foregroundStyle(Theme.appleBlue)
                                 Text(episode.title)
-                                    .font(.headline.weight(.bold))
+                                    .font(.callout.weight(.semibold))
                                     .foregroundStyle(.white)
                                     .lineLimit(2)
                             }

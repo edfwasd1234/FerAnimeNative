@@ -22,6 +22,7 @@ targets:
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_UILaunchStoryboardName: LaunchScreen
     dependencies:
       - sdk: AVKit.framework
       - sdk: WebKit.framework
