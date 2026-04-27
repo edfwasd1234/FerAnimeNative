@@ -32,26 +32,27 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: 24) {
                         hero
                         AnimeRail(title: "Continue Watching", items: Array(recommended.prefix(6)), compact: true)
-                            .glassAppear(delay: 0.08)
                         AnimeRail(title: "Trending", items: trending)
-                            .glassAppear(delay: 0.12)
                         AnimeRail(title: "New Episodes", items: new)
-                            .glassAppear(delay: 0.16)
                         AnimeRail(title: "Action", items: action)
-                            .glassAppear(delay: 0.20)
                     }
                     .padding(.top, 8)
                     .padding(.bottom, 92)
                 }
-                .refreshable { await load() }
+                .refreshable { await load(force: true) }
             }
             .navigationTitle("Watch")
             .navigationDestination(for: Anime.self) { AnimeDetailView(anime: $0) }
+            .navigationDestination(for: AnimeSectionRoute.self) { route in
+                AnimeSectionView(title: route.title, items: route.items)
+            }
             .task {
                 withAnimation(.spring(response: 0.7, dampingFraction: 0.82)) {
                     appeared = true
                 }
-                await load()
+                if recommended.isEmpty && trending.isEmpty && new.isEmpty && action.isEmpty {
+                    await load(force: false)
+                }
             }
             .task(id: heroItems.count) {
                 await autoAdvanceHero()
@@ -115,13 +116,13 @@ struct HomeView: View {
         .opacity(appeared ? 1 : 0)
     }
 
-    private func load() async {
+    private func load(force: Bool) async {
         loading = true
         let catalogs = await jikan.homeCatalogs()
-        recommended = catalogs.recommended
-        trending = catalogs.trending
-        new = catalogs.new
-        action = catalogs.action
+        if !catalogs.recommended.isEmpty { recommended = catalogs.recommended }
+        if !catalogs.trending.isEmpty { trending = catalogs.trending }
+        if !catalogs.new.isEmpty { new = catalogs.new }
+        if !catalogs.action.isEmpty { action = catalogs.action }
         loading = false
         heroIndex = min(heroIndex, max(heroItems.count - 1, 0))
     }
@@ -152,9 +153,11 @@ struct AnimeRail: View {
                     .font(.headline.weight(.semibold))
                     .foregroundStyle(.white)
                 Spacer()
-                Text("See All")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Theme.appleBlue)
+                NavigationLink(value: AnimeSectionRoute(title: title, items: items)) {
+                    Text("See All")
+                        .font(.footnote.weight(.semibold))
+                }
+                .disabled(items.isEmpty)
             }
             .padding(.horizontal, 18)
 
@@ -175,6 +178,37 @@ struct AnimeRail: View {
                 .padding(.horizontal, 18)
             }
         }
+    }
+}
+
+struct AnimeSectionRoute: Hashable {
+    let title: String
+    let items: [Anime]
+}
+
+struct AnimeSectionView: View {
+    let title: String
+    let items: [Anime]
+
+    private let columns = [
+        GridItem(.adaptive(minimum: 130), spacing: 16)
+    ]
+
+    var body: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 20) {
+                ForEach(items) { anime in
+                    NavigationLink(value: anime) {
+                        AnimePosterCard(anime: anime, width: 132, height: 196)
+                    }
+                    .buttonStyle(PressScaleStyle())
+                }
+            }
+            .padding(18)
+            .padding(.bottom, 40)
+        }
+        .background(PremiumBackdrop())
+        .navigationTitle(title)
     }
 }
 
