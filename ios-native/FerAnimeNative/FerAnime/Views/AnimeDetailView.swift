@@ -7,6 +7,8 @@ struct AnimeDetailView: View {
     @State private var episodes: [Episode] = []
     @State private var expanded = false
     @State private var resolvedAnime: Anime?
+    @State private var sourceMatches: [Anime] = []
+    @State private var isMatchingSources = false
 
     private var display: Anime { details ?? anime }
     private var playbackAnime: Anime { resolvedAnime ?? display }
@@ -21,6 +23,8 @@ struct AnimeDetailView: View {
                         .glassAppear()
                     synopsis
                         .glassAppear(delay: 0.06)
+                    sourceSection
+                        .glassAppear(delay: 0.08)
                     episodeList
                         .glassAppear(delay: 0.10)
                 }
@@ -101,44 +105,106 @@ struct AnimeDetailView: View {
         .padding(.horizontal, 18)
     }
 
+    private var sourceSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Source")
+                    .font(.headline.weight(.semibold))
+                Spacer()
+                if isMatchingSources {
+                    ProgressView()
+                }
+            }
+            .padding(.horizontal, 18)
+
+            if sourceMatches.isEmpty {
+                Text(isMatchingSources ? "Matching Jikan metadata to streaming sources..." : "No streaming source matched yet.")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.secondary)
+                    .padding(.horizontal, 18)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(sourceMatches) { match in
+                            Button {
+                                Task { await selectSource(match) }
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(match.sourceId ?? "source")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(Theme.appleBlue)
+                                    Text(match.title)
+                                        .font(.footnote.weight(.semibold))
+                                        .lineLimit(1)
+                                }
+                                .frame(width: 170, alignment: .leading)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.regular)
+                        }
+                    }
+                    .padding(.horizontal, 18)
+                }
+            }
+        }
+    }
+
     private var episodeList: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Episodes")
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 18)
+            HStack {
+                Text("Episodes")
+                    .font(.headline.weight(.semibold))
+                Spacer()
+                Button {
+                    appState.queueDownload(anime: playbackAnime, episode: nil)
+                } label: {
+                    Label("Download All", systemImage: "arrow.down.circle")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(episodes.isEmpty)
+            }
+            .padding(.horizontal, 18)
 
             ForEach(episodes) { episode in
-                NavigationLink {
-                    PlayerView(anime: playbackAnime, episode: episode)
-                } label: {
-                    LiquidGlass(cornerRadius: 20, glow: Theme.appleBlue.opacity(0.08)) {
-                        HStack(spacing: 14) {
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(Color.secondary.opacity(0.18))
-                                .frame(width: 92, height: 58)
-                                .overlay {
-                                    Image(systemName: "play.fill")
-                                        .foregroundStyle(.white)
-                                }
+                LiquidGlass(cornerRadius: 20, glow: Theme.appleBlue.opacity(0.08)) {
+                    HStack(spacing: 14) {
+                        NavigationLink {
+                            PlayerView(anime: playbackAnime, episode: episode)
+                        } label: {
+                            HStack(spacing: 14) {
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .fill(Color.secondary.opacity(0.18))
+                                    .frame(width: 92, height: 58)
+                                    .overlay {
+                                        Image(systemName: "play.fill")
+                                            .foregroundStyle(.white)
+                                    }
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Episode \(Int(episode.number))")
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(Theme.appleBlue)
-                                Text(episode.title)
-                                    .font(.callout.weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .lineLimit(2)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Episode \(Int(episode.number))")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(Theme.appleBlue)
+                                    Text(episode.title)
+                                        .font(.callout.weight(.semibold))
+                                        .lineLimit(2)
+                                }
                             }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .foregroundStyle(Theme.tertiary)
                         }
-                        .padding(12)
+                        .buttonStyle(.plain)
+
+                        Spacer()
+
+                        Button {
+                            appState.queueDownload(anime: playbackAnime, episode: episode)
+                        } label: {
+                            Image(systemName: "arrow.down.circle")
+                                .font(.title3)
+                        }
+                        .buttonStyle(.borderless)
                     }
+                    .padding(12)
                 }
-                .buttonStyle(PressScaleStyle())
                 .padding(.horizontal, 18)
                 .scrollTransition(.interactive, axis: .vertical) { content, phase in
                     content
@@ -156,14 +222,26 @@ struct AnimeDetailView: View {
             return
         }
 
+        isMatchingSources = true
+        defer { isMatchingSources = false }
+        sourceMatches = []
         for source in ["anizone", "animeheaven", "hianime"] {
             guard let match = try? await appState.client.search(anime.title, sourceId: source).first else { continue }
+            sourceMatches.append(match)
             let sourceEpisodes = (try? await appState.client.episodes(sourceId: source, animeId: match.id)) ?? []
-            if !sourceEpisodes.isEmpty {
+            if resolvedAnime == nil, !sourceEpisodes.isEmpty {
                 resolvedAnime = match
                 episodes = sourceEpisodes
-                return
             }
         }
+    }
+
+    private func selectSource(_ match: Anime) async {
+        guard let sourceId = match.sourceId else { return }
+        isMatchingSources = true
+        defer { isMatchingSources = false }
+        resolvedAnime = match
+        episodes = (try? await appState.client.episodes(sourceId: sourceId, animeId: match.id)) ?? []
+        Haptics.impact(.light)
     }
 }

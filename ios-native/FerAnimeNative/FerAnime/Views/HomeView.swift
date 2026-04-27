@@ -44,55 +44,47 @@ struct HomeView: View {
     }
 
     private var hero: some View {
-        GeometryReader { proxy in
-            let heroHeight = min(max(proxy.size.height * 0.62, 300), 340)
-
-            Group {
-                if let anime = recommended.first ?? trending.first {
-                    NavigationLink(value: anime) {
-                        ZStack(alignment: .bottomLeading) {
-                            PosterImage(url: URL(string: anime.banner ?? anime.cover ?? ""), cornerRadius: 28)
-                                .frame(height: heroHeight)
-                                .overlay {
-                                    Rectangle()
-                                        .fill(.black.opacity(0.24))
-                                }
-
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack(spacing: 8) {
-                                    Label(String(format: "%.1f", anime.score ?? 8.7), systemImage: "star.fill")
-                                    Text(anime.year.map(String.init) ?? "Now")
-                                }
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(.white.opacity(0.86))
-
-                                Text(anime.title)
-                                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                                    .minimumScaleFactor(0.78)
-                                    .foregroundStyle(.white)
-                                    .lineLimit(3)
-
-                                SystemPlayLabel()
-                                .frame(maxWidth: 140)
+        Group {
+            if let anime = recommended.first ?? trending.first {
+                NavigationLink(value: anime) {
+                    ZStack(alignment: .bottomLeading) {
+                        PosterImage(url: URL(string: anime.banner ?? anime.cover ?? ""), cornerRadius: 28)
+                            .frame(height: 318)
+                            .overlay {
+                                Rectangle()
+                                    .fill(.black.opacity(0.24))
                             }
-                            .padding(18)
+
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 8) {
+                                Label(String(format: "%.1f", anime.score ?? 8.7), systemImage: "star.fill")
+                                Text(anime.year.map(String.init) ?? "Now")
+                            }
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.white.opacity(0.86))
+
+                            Text(anime.title)
+                                .font(.system(size: 30, weight: .bold, design: .rounded))
+                                .minimumScaleFactor(0.78)
+                                .foregroundStyle(.white)
+                                .lineLimit(3)
+
+                            SystemPlayLabel()
+                                .frame(maxWidth: 140)
                         }
-                        .padding(.horizontal, 16)
-                    }
-                    .buttonStyle(.plain)
-                    .simultaneousGesture(TapGesture().onEnded { Haptics.impact(.medium) })
-                } else {
-                    LiquidGlass {
-                        ProgressView("Loading anime")
-                            .tint(.white)
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity, minHeight: 340)
+                        .padding(18)
                     }
                     .padding(.horizontal, 16)
                 }
+                .buttonStyle(.plain)
+                .simultaneousGesture(TapGesture().onEnded { Haptics.impact(.medium) })
+            } else {
+                ProgressView("Loading anime")
+                    .frame(maxWidth: .infinity, minHeight: 318)
+                    .padding(.horizontal, 16)
             }
         }
-        .frame(height: 360)
+        .frame(height: 318)
         .offset(y: appeared ? 0 : 24)
         .opacity(appeared ? 1 : 0)
     }

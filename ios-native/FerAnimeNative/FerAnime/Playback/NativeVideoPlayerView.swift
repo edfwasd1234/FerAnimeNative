@@ -3,7 +3,9 @@ import SwiftUI
 
 struct NativeVideoPlayerView: View {
     let stream: EpisodeStream
+    var onProgress: (Double, Double) -> Void = { _, _ in }
     @State private var player: AVPlayer?
+    @State private var timeObserver: Any?
 
     var body: some View {
         ZStack {
@@ -11,7 +13,13 @@ struct NativeVideoPlayerView: View {
 
             if let player {
                 VideoPlayer(player: player)
-                    .onDisappear { player.pause() }
+                    .onDisappear {
+                        player.pause()
+                        if let timeObserver {
+                            player.removeTimeObserver(timeObserver)
+                            self.timeObserver = nil
+                        }
+                    }
             } else {
                 ProgressView()
                     .tint(.white)
@@ -26,6 +34,10 @@ struct NativeVideoPlayerView: View {
             player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
             player?.isMuted = false
             player?.volume = 1.0
+            timeObserver = player?.addPeriodicTimeObserver(forInterval: CMTime(seconds: 5, preferredTimescale: 600), queue: .main) { time in
+                let duration = player?.currentItem?.duration.seconds ?? 0
+                onProgress(time.seconds, duration)
+            }
             player?.play()
         }
     }

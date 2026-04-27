@@ -19,7 +19,9 @@ struct PlayerView: View {
                 .frame(height: 0)
 
             if let stream = selectedStream {
-                NativeVideoPlayerView(stream: stream)
+                NativeVideoPlayerView(stream: stream) { currentTime, duration in
+                    appState.updateProgress(anime: anime, episode: episode, currentTime: currentTime, duration: duration)
+                }
             } else if let embed = selectedEmbed, let url = URL(string: embed.url) {
                 WebEmbedPlayerView(url: url)
             } else {
@@ -39,6 +41,9 @@ struct PlayerView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .task { await resolve() }
+        .onAppear {
+            appState.updateProgress(anime: anime, episode: episode, currentTime: 1, duration: 100)
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 if let playback {

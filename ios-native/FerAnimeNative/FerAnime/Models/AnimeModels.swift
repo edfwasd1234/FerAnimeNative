@@ -113,13 +113,31 @@ struct SourceInfo: Codable, Identifiable, Hashable {
     let baseUrl: String?
 }
 
-struct WatchProgress: Identifiable, Hashable {
+struct WatchProgress: Identifiable, Hashable, Codable {
     var id: String { episodeId }
     let episodeId: String
+    let animeId: String
+    let sourceId: String
     let animeTitle: String
     let episodeTitle: String
+    let episodeNumber: Double
     let image: String?
     var progress: Double
+    var duration: Double
+    var updatedAt: Date
+}
+
+struct DownloadItem: Identifiable, Hashable, Codable {
+    let id: String
+    let animeId: String
+    let sourceId: String
+    let animeTitle: String
+    let episodeId: String?
+    let episodeTitle: String
+    let episodeNumber: Double?
+    let image: String?
+    var status: String
+    var createdAt: Date
 }
 
 struct SearchResponse: Codable {
