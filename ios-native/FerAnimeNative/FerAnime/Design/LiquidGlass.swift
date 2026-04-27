@@ -143,18 +143,25 @@ struct PosterImage: View {
     var cornerRadius: CGFloat = 24
 
     var body: some View {
-        AsyncImage(url: url) { phase in
-            switch phase {
-            case .success(let image):
-                image.resizable().scaledToFill()
-            default:
-                ZStack {
-                    Color.secondary.opacity(0.18)
-                    Image(systemName: "play.rectangle.fill")
-                        .font(.largeTitle)
-                        .foregroundStyle(.white.opacity(0.50))
+        GeometryReader { proxy in
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                default:
+                    ZStack {
+                        Color.secondary.opacity(0.18)
+                        Image(systemName: "play.rectangle.fill")
+                            .font(.largeTitle)
+                            .foregroundStyle(.white.opacity(0.50))
+                    }
+                    .frame(width: proxy.size.width, height: proxy.size.height)
                 }
             }
+            .clipped()
         }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }

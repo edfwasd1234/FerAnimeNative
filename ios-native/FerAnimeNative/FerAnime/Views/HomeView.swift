@@ -8,7 +8,20 @@ struct HomeView: View {
     @State private var action: [Anime] = []
     @State private var loading = true
     @State private var appeared = false
+    @State private var heroIndex = 0
     private let jikan = JikanClient()
+
+    private var heroItems: [Anime] {
+        let combined = recommended + trending
+        var seen = Set<String>()
+        return combined.filter { anime in
+            if seen.contains(anime.id) { return false }
+            seen.insert(anime.id)
+            return true
+        }
+        .prefix(6)
+        .map { $0 }
+    }
 
     var body: some View {
         NavigationStack {
@@ -40,51 +53,64 @@ struct HomeView: View {
                 }
                 await load()
             }
+            .task(id: heroItems.count) {
+                await autoAdvanceHero()
+            }
         }
     }
 
     private var hero: some View {
         Group {
-            if let anime = recommended.first ?? trending.first {
-                NavigationLink(value: anime) {
-                    ZStack(alignment: .bottomLeading) {
-                        PosterImage(url: URL(string: anime.banner ?? anime.cover ?? ""), cornerRadius: 28)
-                            .frame(height: 318)
-                            .overlay {
-                                Rectangle()
-                                    .fill(.black.opacity(0.24))
-                            }
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack(spacing: 8) {
-                                Label(String(format: "%.1f", anime.score ?? 8.7), systemImage: "star.fill")
-                                Text(anime.year.map(String.init) ?? "Now")
-                            }
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.white.opacity(0.86))
-
-                            Text(anime.title)
-                                .font(.system(size: 30, weight: .bold, design: .rounded))
-                                .minimumScaleFactor(0.78)
-                                .foregroundStyle(.white)
-                                .lineLimit(3)
-
-                            SystemPlayLabel()
-                                .frame(maxWidth: 140)
-                        }
-                        .padding(18)
-                    }
-                    .padding(.horizontal, 16)
-                }
-                .buttonStyle(.plain)
-                .simultaneousGesture(TapGesture().onEnded { Haptics.impact(.medium) })
-            } else {
+            if heroItems.isEmpty {
                 ProgressView("Loading anime")
                     .frame(maxWidth: .infinity, minHeight: 318)
                     .padding(.horizontal, 16)
+            } else {
+                TabView(selection: $heroIndex) {
+                    ForEach(Array(heroItems.enumerated()), id: \.element.id) { index, anime in
+                        NavigationLink(value: anime) {
+                            ZStack(alignment: .bottomLeading) {
+                                PosterImage(url: URL(string: anime.banner ?? anime.cover ?? ""), cornerRadius: 28)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 318)
+                                    .overlay {
+                                        Rectangle()
+                                            .fill(.black.opacity(0.24))
+                                    }
+                                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+
+                                VStack(alignment: .leading, spacing: 12) {
+                                    HStack(spacing: 8) {
+                                        Label(String(format: "%.1f", anime.score ?? 8.7), systemImage: "star.fill")
+                                        Text(anime.year.map(String.init) ?? "Now")
+                                    }
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.white.opacity(0.86))
+
+                                    Text(anime.title)
+                                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                                        .minimumScaleFactor(0.78)
+                                        .foregroundStyle(.white)
+                                        .lineLimit(3)
+
+                                    SystemPlayLabel()
+                                        .frame(maxWidth: 140)
+                                }
+                                .padding(18)
+                            }
+                            .padding(.horizontal, 16)
+                        }
+                        .buttonStyle(.plain)
+                        .tag(index)
+                        .simultaneousGesture(TapGesture().onEnded { Haptics.impact(.medium) })
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .automatic))
+                .frame(height: 338)
+                .clipped()
             }
         }
-        .frame(height: 318)
+        .frame(height: 338)
         .offset(y: appeared ? 0 : 24)
         .opacity(appeared ? 1 : 0)
     }
@@ -97,6 +123,20 @@ struct HomeView: View {
         new = catalogs.new
         action = catalogs.action
         loading = false
+        heroIndex = min(heroIndex, max(heroItems.count - 1, 0))
+    }
+
+    private func autoAdvanceHero() async {
+        guard heroItems.count > 1 else { return }
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled, heroItems.count > 1 else { return }
+            await MainActor.run {
+                withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                    heroIndex = (heroIndex + 1) % heroItems.count
+                }
+            }
+        }
     }
 }
 

@@ -15,15 +15,16 @@ enum ResolverError: LocalizedError {
 final class ResolverClient: ObservableObject {
     let host: String
     let port: Int
+    private let resolvedBaseURL: URL?
 
     init(host: String, port: Int = 4517) {
-        self.host = host.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.port = port
+        let endpoint = ResolverEndpoint(rawValue: host, defaultPort: port)
+        self.host = endpoint.host
+        self.port = endpoint.port
+        self.resolvedBaseURL = endpoint.url
     }
 
-    private var baseURL: URL {
-        URL(string: "http://\(host):\(port)")!
-    }
+    private var baseURL: URL? { resolvedBaseURL }
 
     func catalog(section: String, sourceId: String = "anizone") async throws -> [Anime] {
         try await get("/api/anime/catalog", query: ["sourceId": sourceId, "section": section], as: CatalogResponse.self).items
@@ -50,7 +51,8 @@ final class ResolverClient: ObservableObject {
     }
 
     private func get<T: Decodable>(_ path: String, query: [String: String] = [:], as type: T.Type) async throws -> T {
-        guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+        guard let baseURL,
+              var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
             throw ResolverError.badURL
         }
         components.percentEncodedPath = path
@@ -71,5 +73,31 @@ final class ResolverClient: ObservableObject {
 private extension String {
     var pathEncoded: String {
         addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/?#[]@!$&'()*+,;="))) ?? self
+    }
+}
+
+private struct ResolverEndpoint {
+    let host: String
+    let port: Int
+    let url: URL?
+
+    init(rawValue: String, defaultPort: Int) {
+        let trimmed = rawValue
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+
+        let candidate = trimmed.contains("://") ? trimmed : "http://\(trimmed)"
+        let components = URLComponents(string: candidate)
+        let parsedHost = components?.host?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parsedPort = components?.port
+
+        host = parsedHost?.isEmpty == false ? parsedHost! : trimmed
+        port = parsedPort ?? defaultPort
+
+        var normalized = URLComponents()
+        normalized.scheme = components?.scheme ?? "http"
+        normalized.host = host
+        normalized.port = port
+        url = normalized.url
     }
 }

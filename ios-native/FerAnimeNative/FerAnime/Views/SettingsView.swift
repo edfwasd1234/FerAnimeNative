@@ -16,7 +16,7 @@ struct SettingsView: View {
                         .autocorrectionDisabled()
 
                     Button {
-                        appState.resolverHost = hostDraft
+                        appState.resolverHost = hostDraft.trimmingCharacters(in: .whitespacesAndNewlines)
                         Haptics.impact(.medium)
                     } label: {
                         Label("Save Host", systemImage: "checkmark")
@@ -24,7 +24,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Resolver")
                 } footer: {
-                    Text("Use your Windows PC LAN IP, for example 192.168.1.202.")
+                    Text("Accepted formats: 192.168.1.209, 192.168.1.209:4517, or http://192.168.1.209:4517.")
                 }
 
                 Section("Playback") {
