@@ -9,6 +9,9 @@ struct RootView: View {
             SearchView()
                 .tabItem { Label("Search", systemImage: "magnifyingglass") }
 
+            MangaView()
+                .tabItem { Label("Manga", systemImage: "books.vertical.fill") }
+
             LibraryView()
                 .tabItem { Label("Library", systemImage: "rectangle.stack.fill") }
 

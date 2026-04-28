@@ -5,6 +5,7 @@ const anizone = require("./anizone");
 const animeheaven = require("./animeheaven");
 const hianime = require("./hianime");
 const metadata = require("./metadata");
+const mangahook = require("./mangahook");
 
 const PORT = Number(process.env.PORT || process.env.FERANIME_RESOLVER_PORT || 4517);
 const resolvers = {
@@ -57,6 +58,34 @@ async function handle(req, res) {
 
     if (url.pathname === "/api/sources") {
       sendJson(res, 200, { sources });
+      return;
+    }
+
+    if (url.pathname === "/api/mangaList") {
+      sendJson(
+        res,
+        200,
+        await mangahook.list({
+          page: Number(url.searchParams.get("page") || 1),
+          type: url.searchParams.get("type") || "latest",
+          category: url.searchParams.get("category") || "all",
+          state: url.searchParams.get("state") || "all"
+        })
+      );
+      return;
+    }
+
+    if (parts[0] === "api" && parts[1] === "search" && parts[2]) {
+      sendJson(res, 200, await mangahook.search(decodeURIComponent(parts[2]), Number(url.searchParams.get("page") || 1)));
+      return;
+    }
+
+    if (parts[0] === "api" && parts[1] === "manga" && parts[2]) {
+      if (parts[3]) {
+        sendJson(res, 200, await mangahook.chapter(decodeURIComponent(parts[2]), decodeURIComponent(parts[3])));
+        return;
+      }
+      sendJson(res, 200, await mangahook.detail(decodeURIComponent(parts[2])));
       return;
     }
 

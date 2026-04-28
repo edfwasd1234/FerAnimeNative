@@ -21,6 +21,7 @@ The older Expo prototype is still in the repository for reference, but active de
 - Continue Watching progress saved locally.
 - Library screen with watch history and download queue.
 - Download queue controls for a full anime or individual episodes.
+- Native Manga tab powered by MangaHook, with search, manga details, chapter lists, and a vertical reader.
 - GitHub Actions workflow that builds an unsigned iOS IPA artifact.
 - Build-time verification that the final app bundle contains the launch-screen metadata needed for full-screen iPhone display.
 
@@ -223,6 +224,7 @@ The native app uses:
 - AVKit / AVPlayer for direct HLS and MP4 playback.
 - WebKit for embed fallback.
 - URLSession for Jikan and resolver API calls.
+- URLSession for MangaHook manga catalog, search, detail, and reader pages.
 - UserDefaults for lightweight local progress/download queue storage.
 
 The resolver uses:
@@ -258,6 +260,7 @@ Thanks to the maintainers and contributors of the anime CLI/app ecosystem whose 
 - [`viu-media/viu`](https://github.com/viu-media/viu)
 - [`KilDesu/ani-skip`](https://github.com/KilDesu/ani-skip)
 - [`roshancodespace/ShonenX`](https://github.com/roshancodespace/ShonenX)
+- [`kiraaziz/mangahook-api`](https://github.com/kiraaziz/mangahook-api)
 - [`Jikan`](https://jikan.moe/) for the public MyAnimeList metadata API.
 
 Respect to everyone building open-source media tooling. This project is for personal learning and private use.
