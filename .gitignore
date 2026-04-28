@@ -18,3 +18,4 @@ expo.log
 .DS_Store
 Thumbs.db
 ios-native/FerAnimeNative/FerAnimeNative.xcodeproj/
+feranime-api-service/
