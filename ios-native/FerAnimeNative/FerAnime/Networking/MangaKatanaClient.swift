@@ -1,6 +1,6 @@
 import Foundation
 
-struct MangaHookClient {
+struct MangaKatanaClient {
     private let baseURL: URL
     private let decoder = JSONDecoder()
 

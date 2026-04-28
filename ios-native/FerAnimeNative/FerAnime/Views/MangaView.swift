@@ -10,7 +10,7 @@ struct MangaView: View {
     @State private var loading = true
     @State private var errorMessage: String?
 
-    private var client: MangaHookClient { MangaHookClient(resolverBaseURL: appState.client.baseURL) }
+    private var client: MangaKatanaClient { MangaKatanaClient(resolverBaseURL: appState.client.baseURL) }
 
     var body: some View {
         NavigationStack {
@@ -59,7 +59,7 @@ struct MangaView: View {
             Text("Manga")
                 .font(.system(size: 40, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
-            Text("Browse chapters, open a title, and read page-by-page in a native vertical reader.")
+            Text("Browse MangaKatana chapters, open a title, and read page-by-page in a native vertical reader.")
                 .font(.callout)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -122,7 +122,7 @@ struct MangaView: View {
             newest = newestResponse.mangaList
             action = actionResponse.mangaList
         } catch {
-            errorMessage = "Could not load MangaHook right now."
+            errorMessage = "Could not load MangaKatana right now."
         }
         loading = false
     }
@@ -185,7 +185,7 @@ struct MangaDetailView: View {
     @State private var loading = true
     @State private var errorMessage: String?
 
-    private var client: MangaHookClient { MangaHookClient(resolverBaseURL: appState.client.baseURL) }
+    private var client: MangaKatanaClient { MangaKatanaClient(resolverBaseURL: appState.client.baseURL) }
 
     var body: some View {
         ZStack {
@@ -328,7 +328,7 @@ struct MangaReaderView: View {
     @State private var loading = true
     @State private var errorMessage: String?
 
-    private var client: MangaHookClient { MangaHookClient(resolverBaseURL: appState.client.baseURL) }
+    private var client: MangaKatanaClient { MangaKatanaClient(resolverBaseURL: appState.client.baseURL) }
 
     var body: some View {
         ZStack {
