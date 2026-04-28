@@ -1,4 +1,17 @@
 {
+  "name": "feranime-resolver",
+  "description": "Personal-use resolver backend for the FerAnime native iOS app.",
+  "repository": "https://github.com/edfwasd1234/FerAnimeNative",
+  "keywords": ["node", "ios", "resolver", "anime"],
+  "scripts": {
+    "postdeploy": "node -e \"console.log('FerAnime resolver deployed')\""
+  },
+  "env": {
+    "NODE_ENV": {
+      "description": "Node runtime mode.",
+      "value": "production"
+    }
+  },
   "expo": {
     "name": "FerAnime",
     "slug": "feranime",

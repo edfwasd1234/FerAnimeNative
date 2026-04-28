@@ -6,7 +6,7 @@ const animeheaven = require("./animeheaven");
 const hianime = require("./hianime");
 const metadata = require("./metadata");
 
-const PORT = Number(process.env.FERANIME_RESOLVER_PORT || 4517);
+const PORT = Number(process.env.PORT || process.env.FERANIME_RESOLVER_PORT || 4517);
 const resolvers = {
   animeheaven,
   hianime,
@@ -131,6 +131,17 @@ async function handle(req, res) {
   }
 }
 
-http.createServer(handle).listen(PORT, "0.0.0.0", () => {
-  console.log(`FerAnime resolver listening on http://localhost:${PORT}`);
-});
+function startServer() {
+  return http.createServer(handle).listen(PORT, "0.0.0.0", () => {
+    console.log(`FerAnime resolver listening on http://localhost:${PORT}`);
+  });
+}
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = {
+  handle,
+  startServer
+};

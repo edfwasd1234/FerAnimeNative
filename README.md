@@ -1,11 +1,11 @@
 # FerAnimeNative
 
-FerAnimeNative is a personal-use native iOS anime watching app built with SwiftUI. It pairs a clean Apple-style iPhone interface with a local Node resolver backend for source lookup, episode discovery, and stream resolution.
+FerAnimeNative is a personal-use native iOS anime watching app built with SwiftUI. It pairs a clean Apple-style iPhone interface with a Node resolver backend for source lookup, episode discovery, and stream resolution.
 
 The project currently includes two app layers:
 
 - `ios-native/FerAnimeNative`: the native SwiftUI iOS app.
-- `backend`: the local Node resolver used by the iOS app.
+- `backend`: the Node resolver used by the iOS app.
 
 The older Expo prototype is still in the repository for reference, but active development is focused on the native iOS app.
 
@@ -36,12 +36,12 @@ The older Expo prototype is still in the repository for reference, but active de
 
 ```text
 .
-├── backend/                         # Local Node resolver server and source modules
-├── extensions/                      # Extension experiments
-├── ios-native/FerAnimeNative/       # Native SwiftUI iOS app
-├── .github/workflows/               # GitHub Actions iOS build workflow
-├── app/, src/                       # Expo prototype/reference implementation
-└── package.json                     # Resolver scripts and Expo prototype dependencies
+|-- backend/                         # Node resolver server and source modules
+|-- extensions/                      # Extension experiments
+|-- ios-native/FerAnimeNative/       # Native SwiftUI iOS app
+|-- .github/workflows/               # GitHub Actions iOS build workflow
+|-- app/, src/                       # Expo prototype/reference implementation
+`-- package.json                     # Resolver scripts and Expo prototype dependencies
 ```
 
 ## Running the Resolver Backend
@@ -74,6 +74,50 @@ Expected response:
 }
 ```
 
+## Deploy the Resolver Backend
+
+You can run the resolver on your PC, or host it so your iPhone can reach it through a public HTTPS URL. After deploying, put the deployed URL into the app Settings screen.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/edfwasd1234/FerAnimeNative)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fedfwasd1234%2FFerAnimeNative)
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/edfwasd1234/FerAnimeNative)
+[![Deploy on Railway](https://img.shields.io/badge/Deploy%20on-Railway-7B61FF?style=for-the-badge&logo=railway&logoColor=white)](https://railway.com/new)
+
+Supported hosting files:
+
+- `render.yaml` for Render Blueprint deploys.
+- `railway.json` for Railway Nixpacks deploy settings.
+- `Procfile` and top-level Heroku metadata in `app.json`.
+- `vercel.json` and `api/index.js` for Vercel serverless routing.
+
+Default start command:
+
+```text
+npm run resolver
+```
+
+Health check path:
+
+```text
+/health
+```
+
+Hosted URL examples:
+
+```text
+https://feranime-resolver.onrender.com
+https://your-project.up.railway.app
+https://your-project.vercel.app
+```
+
+Notes:
+
+- Render, Railway, and Heroku run the backend as a normal Node web service.
+- Vercel is serverless, so it uses `api/index.js` to route requests into the resolver.
+- Free tiers may sleep after inactivity, so the first request can be slow.
+- Some streaming sources may block datacenter IP addresses. If that happens, run the resolver locally on your Windows PC instead.
+- Keep hosted resolver URLs private for personal use.
+
 ## iPhone Resolver Host
 
 On your Windows PC, `127.0.0.1` means the PC. On your iPhone, `127.0.0.1` means the iPhone.
@@ -83,16 +127,22 @@ Use your PC LAN IP in the iOS app Settings screen.
 Example:
 
 ```text
-192.168.1.202
+192.168.1.209
 ```
 
 Full backend URL:
 
 ```text
-http://192.168.1.202:4517
+http://192.168.1.209:4517
 ```
 
-Your iPhone and PC must be on the same Wi-Fi network, and Windows Firewall must allow the resolver port if needed.
+If you deploy the resolver, use the HTTPS URL instead:
+
+```text
+https://your-resolver-host.example.com
+```
+
+Your iPhone and PC must be on the same Wi-Fi network for local hosting, and Windows Firewall must allow the resolver port if needed.
 
 ## Building the Native iOS App
 
@@ -215,4 +265,3 @@ Respect to everyone building open-source media tooling. This project is for pers
 ## Disclaimer
 
 This repository is for personal education and experimentation. Use it responsibly. The app does not grant rights to download, redistribute, or stream content you do not have permission to access.
-
