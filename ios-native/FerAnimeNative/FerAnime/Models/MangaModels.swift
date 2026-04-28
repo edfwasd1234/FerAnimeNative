@@ -21,6 +21,12 @@ struct MangaListResponse: Codable {
     let metaData: MangaMetaData?
 }
 
+struct MangaHomeCache: Codable {
+    let popular: [MangaItem]
+    let newest: [MangaItem]
+    let action: [MangaItem]
+}
+
 struct MangaMetaData: Codable, Hashable {
     let totalStories: Int?
     let totalPages: Int?

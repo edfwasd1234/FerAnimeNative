@@ -50,6 +50,7 @@ struct HomeView: View {
                 withAnimation(.spring(response: 0.7, dampingFraction: 0.82)) {
                     appeared = true
                 }
+                applyCachedCatalogs()
                 if recommended.isEmpty && trending.isEmpty && new.isEmpty && action.isEmpty {
                     await load(force: false)
                 }
@@ -117,14 +118,32 @@ struct HomeView: View {
     }
 
     private func load(force: Bool) async {
+        if !force, applyCachedCatalogs() {
+            loading = false
+            return
+        }
         loading = true
         let catalogs = await jikan.homeCatalogs()
         if !catalogs.recommended.isEmpty { recommended = catalogs.recommended }
         if !catalogs.trending.isEmpty { trending = catalogs.trending }
         if !catalogs.new.isEmpty { new = catalogs.new }
         if !catalogs.action.isEmpty { action = catalogs.action }
+        if !recommended.isEmpty || !trending.isEmpty || !new.isEmpty || !action.isEmpty {
+            appState.cachedHomeCatalogs = HomeCatalogs(recommended: recommended, trending: trending, new: new, action: action)
+        }
         loading = false
         heroIndex = min(heroIndex, max(heroItems.count - 1, 0))
+    }
+
+    @discardableResult
+    private func applyCachedCatalogs() -> Bool {
+        guard let catalogs = appState.cachedHomeCatalogs else { return false }
+        if recommended.isEmpty { recommended = catalogs.recommended }
+        if trending.isEmpty { trending = catalogs.trending }
+        if new.isEmpty { new = catalogs.new }
+        if action.isEmpty { action = catalogs.action }
+        heroIndex = min(heroIndex, max(heroItems.count - 1, 0))
+        return !recommended.isEmpty || !trending.isEmpty || !new.isEmpty || !action.isEmpty
     }
 
     private func autoAdvanceHero() async {

@@ -51,7 +51,7 @@ final class JikanClient {
     }
 }
 
-struct HomeCatalogs {
+struct HomeCatalogs: Codable {
     let recommended: [Anime]
     let trending: [Anime]
     let new: [Anime]

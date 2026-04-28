@@ -10,11 +10,17 @@ const PAGE_HEADERS = {
   Referer: `${SOURCE.baseUrl}/`,
   Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 };
+const pageCache = new Map();
+const CACHE_TTL_MS = 1000 * 60 * 20;
 
 async function requestText(url) {
+  const cached = pageCache.get(url);
+  if (cached && Date.now() - cached.time < CACHE_TTL_MS) return cached.text;
   const response = await fetch(url, { headers: PAGE_HEADERS });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText} for ${url}`);
-  return response.text();
+  const text = await response.text();
+  pageCache.set(url, { time: Date.now(), text });
+  return text;
 }
 
 function decodeHtml(text) {

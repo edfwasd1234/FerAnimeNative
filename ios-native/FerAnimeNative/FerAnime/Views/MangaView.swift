@@ -49,7 +49,10 @@ struct MangaView: View {
             .navigationDestination(for: MangaItem.self) { item in
                 MangaDetailView(item: item)
             }
-            .task { await loadHome() }
+            .task {
+                applyCachedHome()
+                await loadHome()
+            }
             .onChange(of: query) { _, _ in search() }
         }
     }
@@ -109,6 +112,10 @@ struct MangaView: View {
 
     private func loadHome() async {
         guard popular.isEmpty else { return }
+        if applyCachedHome() {
+            loading = false
+            return
+        }
         loading = true
         errorMessage = nil
         do {
@@ -121,10 +128,22 @@ struct MangaView: View {
             popular = popularResponse.mangaList
             newest = newestResponse.mangaList
             action = actionResponse.mangaList
+            if !popular.isEmpty || !newest.isEmpty || !action.isEmpty {
+                appState.cachedMangaHome = MangaHomeCache(popular: popular, newest: newest, action: action)
+            }
         } catch {
             errorMessage = "Could not load MangaKatana right now."
         }
         loading = false
+    }
+
+    @discardableResult
+    private func applyCachedHome() -> Bool {
+        guard let cache = appState.cachedMangaHome else { return false }
+        if popular.isEmpty { popular = cache.popular }
+        if newest.isEmpty { newest = cache.newest }
+        if action.isEmpty { action = cache.action }
+        return !popular.isEmpty || !newest.isEmpty || !action.isEmpty
     }
 
     private func search() {
@@ -133,9 +152,16 @@ struct MangaView: View {
             results = []
             return
         }
+        let key = trimmed.lowercased()
+        if let cached = appState.cachedMangaSearches[key] {
+            results = cached
+            return
+        }
         Task {
             do {
-                results = try await client.search(trimmed).mangaList
+                let loaded = try await client.search(trimmed).mangaList
+                results = loaded
+                appState.cachedMangaSearches[key] = loaded
             } catch {
                 results = []
             }
@@ -310,9 +336,16 @@ struct MangaDetailView: View {
 
     private func loadDetail() async {
         guard detail == nil else { return }
+        if let cached = appState.cachedMangaDetails[item.detailId] {
+            detail = cached
+            loading = false
+            return
+        }
         loading = true
         do {
-            detail = try await client.detail(id: item.detailId)
+            let loaded = try await client.detail(id: item.detailId)
+            detail = loaded
+            appState.cachedMangaDetails[item.detailId] = loaded
         } catch {
             errorMessage = "Could not load chapters for this manga."
         }
@@ -377,9 +410,17 @@ struct MangaReaderView: View {
 
     private func loadChapter() async {
         guard detail == nil else { return }
+        let key = "\(mangaId)::\(chapter.id)"
+        if let cached = appState.cachedMangaChapters[key] {
+            detail = cached
+            loading = false
+            return
+        }
         loading = true
         do {
-            detail = try await client.chapter(mangaId: mangaId, chapterId: chapter.id)
+            let loaded = try await client.chapter(mangaId: mangaId, chapterId: chapter.id)
+            detail = loaded
+            appState.cachedMangaChapters[key] = loaded
         } catch {
             errorMessage = "Could not load pages for this chapter."
         }
