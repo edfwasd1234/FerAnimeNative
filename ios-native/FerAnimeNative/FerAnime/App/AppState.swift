@@ -40,10 +40,14 @@ final class AppState: ObservableObject {
     @Published var cachedMangaSearches: [String: [MangaItem]] = [:] {
         didSet { save(cachedMangaSearches, key: "cachedMangaSearches") }
     }
+    @Published var notificationsEnabled: Bool {
+        didSet { UserDefaults.standard.set(notificationsEnabled, forKey: "notificationsEnabled") }
+    }
 
     init() {
         let savedHost = UserDefaults.standard.string(forKey: "resolverHost") ?? "127.0.0.1"
         resolverHost = savedHost
+        notificationsEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
         client = ResolverClient(host: savedHost)
         continueWatching = Self.loadWatchProgress()
         downloads = Self.loadDownloads()
@@ -91,6 +95,34 @@ final class AppState: ObservableObject {
         )
         downloads.removeAll { $0.id == item.id }
         downloads.insert(item, at: 0)
+    }
+
+    func requestNotifications() {
+        Task {
+            let granted = await NotificationManager.requestAuthorization()
+            notificationsEnabled = granted
+            if granted {
+                NotificationManager.scheduleLibraryReminder()
+            }
+        }
+    }
+
+    func scheduleUpdateNotification(title: String, body: String) {
+        guard notificationsEnabled else { return }
+        NotificationManager.schedule(title: title, body: body)
+    }
+
+    func notifyNewEpisodeIfNeeded(_ anime: Anime?) {
+        guard notificationsEnabled, let anime else { return }
+        let key = "latestEpisodeNotificationKey"
+        let value = anime.id
+        guard UserDefaults.standard.string(forKey: key) != value else { return }
+        UserDefaults.standard.set(value, forKey: key)
+        NotificationManager.schedule(
+            title: "New episode row updated",
+            body: "\(anime.title) is showing in your latest anime picks.",
+            identifier: "latest-episode-\(anime.id)"
+        )
     }
 
     func cacheKey(_ parts: String...) -> String {

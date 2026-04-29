@@ -65,7 +65,12 @@ struct PlayerView: View {
             episodeNumber: episode.number
         )
         playback = result
-        selectedStream = result?.direct.first
-        selectedEmbed = result?.direct.first == nil ? result?.embeds.first : nil
+        if result?.sourceId == "hianime" {
+            selectedStream = nil
+            selectedEmbed = result?.embeds.first
+        } else {
+            selectedStream = result?.direct.first
+            selectedEmbed = result?.direct.first == nil ? result?.embeds.first : nil
+        }
     }
 }

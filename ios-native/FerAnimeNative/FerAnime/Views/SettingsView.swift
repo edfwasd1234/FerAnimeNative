@@ -32,6 +32,29 @@ struct SettingsView: View {
                     ToggleRow(title: "Autoplay", icon: "play.circle.fill", isOn: $autoPlay)
                 }
 
+                Section("Notifications") {
+                    HStack(spacing: 14) {
+                        Image(systemName: "bell.badge.fill")
+                            .foregroundStyle(Theme.appleBlue)
+                            .frame(width: 26)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Library Updates")
+                                .font(.body.weight(.medium))
+                            Text(appState.notificationsEnabled ? "Enabled" : "Ask before sending alerts")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button(appState.notificationsEnabled ? "On" : "Enable") {
+                            appState.requestNotifications()
+                            Haptics.impact(.medium)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(appState.notificationsEnabled)
+                    }
+                    .frame(minHeight: 56)
+                }
+
                 Section("About") {
                     LabeledContent("Build", value: "Native iOS")
                     LabeledContent("Playback", value: "AVPlayer + WebKit")

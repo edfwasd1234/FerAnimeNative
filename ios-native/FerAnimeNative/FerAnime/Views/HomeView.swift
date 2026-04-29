@@ -23,6 +23,30 @@ struct HomeView: View {
         .map { $0 }
     }
 
+    private var continueItems: [WatchProgress] {
+        Array(appState.continueWatching.prefix(8))
+    }
+
+    private var becauseYouWatched: [Anime] {
+        let watchedTitles = Set(appState.continueWatching.map { $0.animeTitle.lowercased() })
+        let watchedGenres = Set((recommended + trending + new + action)
+            .filter { watchedTitles.contains($0.title.lowercased()) }
+            .flatMap(\.genres))
+        let pool = trending + new + action + recommended
+        var seen = Set<String>()
+        let personalized = pool.filter { anime in
+            guard !watchedTitles.contains(anime.title.lowercased()), !seen.contains(anime.id) else { return false }
+            let hasGenreMatch = !watchedGenres.isEmpty && anime.genres.contains { watchedGenres.contains($0) }
+            if hasGenreMatch {
+                seen.insert(anime.id)
+                return true
+            }
+            return false
+        }
+        if !personalized.isEmpty { return Array(personalized.prefix(12)) }
+        return Array(pool.filter { seen.insert($0.id).inserted }.prefix(12))
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -31,7 +55,12 @@ struct HomeView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 24) {
                         hero
-                        AnimeRail(title: "Continue Watching", items: Array(recommended.prefix(6)), compact: true)
+                        if !continueItems.isEmpty {
+                            ContinueWatchingRail(items: continueItems)
+                        }
+                        if !becauseYouWatched.isEmpty {
+                            AnimeRail(title: appState.continueWatching.isEmpty ? "Recommended For You" : "Because You Watched", items: becauseYouWatched)
+                        }
                         AnimeRail(title: "Trending", items: trending)
                         AnimeRail(title: "New Episodes", items: new)
                         AnimeRail(title: "Action", items: action)
@@ -130,6 +159,7 @@ struct HomeView: View {
         if !catalogs.action.isEmpty { action = catalogs.action }
         if !recommended.isEmpty || !trending.isEmpty || !new.isEmpty || !action.isEmpty {
             appState.cachedHomeCatalogs = HomeCatalogs(recommended: recommended, trending: trending, new: new, action: action)
+            appState.notifyNewEpisodeIfNeeded(new.first)
         }
         loading = false
         heroIndex = min(heroIndex, max(heroItems.count - 1, 0))
@@ -155,6 +185,51 @@ struct HomeView: View {
                 withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
                     heroIndex = (heroIndex + 1) % heroItems.count
                 }
+            }
+        }
+    }
+}
+
+struct ContinueWatchingRail: View {
+    let items: [WatchProgress]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Continue Watching")
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 18)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(items) { item in
+                        NavigationLink {
+                            PlayerView(anime: item.anime, episode: item.episode)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 9) {
+                                PosterImage(url: URL(string: item.image ?? ""), cornerRadius: 18)
+                                    .frame(width: 198, height: 112)
+                                    .overlay(alignment: .bottom) {
+                                        ProgressView(value: item.progress)
+                                            .tint(Theme.appleBlue)
+                                            .padding(.horizontal, 12)
+                                            .padding(.bottom, 9)
+                                    }
+                                Text(item.animeTitle)
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                                    .frame(width: 198, alignment: .leading)
+                                Text("Episode \(Int(item.episodeNumber))")
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.tertiary)
+                                    .frame(width: 198, alignment: .leading)
+                            }
+                        }
+                        .buttonStyle(PressScaleStyle())
+                    }
+                }
+                .padding(.horizontal, 18)
             }
         }
     }
@@ -263,5 +338,38 @@ struct CinematicBackground: View {
         ZStack {
             PremiumBackdrop()
         }
+    }
+}
+
+private extension WatchProgress {
+    var anime: Anime {
+        Anime(
+            id: animeId,
+            sourceId: sourceId,
+            malId: nil,
+            anidbId: nil,
+            title: animeTitle,
+            subtitle: sourceId,
+            cover: image,
+            banner: image,
+            year: nil,
+            score: nil,
+            genres: [],
+            status: nil,
+            progress: nil,
+            synopsis: nil
+        )
+    }
+
+    var episode: Episode {
+        Episode(
+            id: episodeId,
+            animeId: animeId,
+            sourceId: sourceId,
+            number: episodeNumber,
+            title: episodeTitle,
+            duration: nil,
+            streamUrl: nil
+        )
     }
 }

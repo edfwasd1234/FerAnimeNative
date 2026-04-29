@@ -80,7 +80,7 @@ final class StreamResolver: ObservableObject {
     }
 
     private func makePlayback(sourceId: String, episode: Episode, streams: [EpisodeStream]) -> ResolvedPlayback? {
-        let direct = streams.filter(\.isDirect)
+        let direct = sourceId == "hianime" ? [] : streams.filter(\.isDirect)
         let embeds = streams.filter(\.isEmbed)
         guard !direct.isEmpty || !embeds.isEmpty else { return nil }
         return ResolvedPlayback(sourceId: sourceId, episode: episode, direct: direct, embeds: embeds)
@@ -98,4 +98,3 @@ final class StreamResolver: ObservableObject {
             .replacingOccurrences(of: " ", with: "")
     }
 }
-
