@@ -3,6 +3,7 @@ import WebKit
 
 struct WebEmbedPlayerView: UIViewRepresentable {
     let url: URL
+    var onPlaybackError: (() -> Void)? = nil
 
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
@@ -20,7 +21,9 @@ struct WebEmbedPlayerView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        context.coordinator.onPlaybackError = onPlaybackError
         if webView.url != url {
+            context.coordinator.resetLoadState()
             webView.load(URLRequest(url: url))
         }
     }
@@ -30,6 +33,9 @@ struct WebEmbedPlayerView: UIViewRepresentable {
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate {
+        var onPlaybackError: (() -> Void)?
+        private var reportedFailedLoad = false
+
         func installContentRules(into webView: WKWebView) {
             let rules = """
             [
@@ -56,6 +62,36 @@ struct WebEmbedPlayerView: UIViewRepresentable {
             }
             decisionHandler(.allow)
         }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+            if let response = navigationResponse.response as? HTTPURLResponse, response.statusCode == 410 {
+                notifyPlaybackError()
+                decisionHandler(.cancel)
+                return
+            }
+            decisionHandler(.allow)
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            if (error as NSError).code == NSURLErrorCancelled { return }
+            notifyPlaybackError()
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            if (error as NSError).code == NSURLErrorCancelled { return }
+            notifyPlaybackError()
+        }
+
+        func resetLoadState() {
+            reportedFailedLoad = false
+        }
+
+        private func notifyPlaybackError() {
+            guard !reportedFailedLoad else { return }
+            reportedFailedLoad = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                self?.onPlaybackError?()
+            }
+        }
     }
 }
-

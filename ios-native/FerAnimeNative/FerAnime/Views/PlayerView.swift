@@ -10,6 +10,8 @@ struct PlayerView: View {
     @State private var playback: ResolvedPlayback?
     @State private var selectedStream: EpisodeStream?
     @State private var selectedEmbed: EpisodeStream?
+    @State private var selectedEmbedIndex = 0
+    @State private var playbackMessage = ""
 
     private var sourceId: String { episode.sourceId ?? anime.sourceId ?? "anizone" }
 
@@ -23,12 +25,14 @@ struct PlayerView: View {
                     appState.updateProgress(anime: anime, episode: episode, currentTime: currentTime, duration: duration)
                 }
             } else if let embed = selectedEmbed, let url = URL(string: embed.url) {
-                WebEmbedPlayerView(url: url)
+                WebEmbedPlayerView(url: url) {
+                    advanceToNextEmbed()
+                }
             } else {
                 VStack(spacing: 14) {
                     ProgressView()
                         .tint(.white)
-                    Text(resolver.message)
+                    Text(playbackMessage.isEmpty ? resolver.message : playbackMessage)
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(Theme.secondary)
                 }
@@ -65,6 +69,8 @@ struct PlayerView: View {
             episodeNumber: episode.number
         )
         playback = result
+        playbackMessage = ""
+        selectedEmbedIndex = 0
         if result?.sourceId == "hianime" {
             selectedStream = nil
             selectedEmbed = result?.embeds.first
@@ -72,5 +78,24 @@ struct PlayerView: View {
             selectedStream = result?.direct.first
             selectedEmbed = result?.direct.first == nil ? result?.embeds.first : nil
         }
+    }
+
+    private func advanceToNextEmbed() {
+        guard let embeds = playback?.embeds, !embeds.isEmpty else {
+            selectedEmbed = nil
+            playbackMessage = "This embed is unavailable right now."
+            return
+        }
+
+        let nextIndex = selectedEmbedIndex + 1
+        guard embeds.indices.contains(nextIndex) else {
+            selectedEmbed = nil
+            playbackMessage = "All embed mirrors are unavailable right now."
+            return
+        }
+
+        selectedEmbedIndex = nextIndex
+        selectedEmbed = embeds[nextIndex]
+        playbackMessage = "Trying another mirror..."
     }
 }
