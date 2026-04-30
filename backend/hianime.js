@@ -189,6 +189,22 @@ async function collectNestedEmbeds(embedUrl, out, seen, depth = 0, referer = SOU
   }
 }
 
+async function isLiveIframeUrl(url, referer = SOURCE.baseUrl) {
+  if (!url) return false;
+  try {
+    const response = await fetch(url, {
+      headers: {
+        ...PAGE_HEADERS,
+        Referer: referer
+      },
+      redirect: "manual"
+    });
+    return response.status >= 200 && response.status < 400;
+  } catch {
+    return false;
+  }
+}
+
 function slugFromSeriesUrl(url) {
   const match = absoluteUrl(url)?.match(/\/series\/([^/]+)\//i);
   return match ? match[1] : "";
@@ -467,7 +483,12 @@ async function streams(episodeId) {
     await collectNestedEmbeds(embed, embeds, seenEmbeds, 0, episodeUrl);
   }
 
-  const embedStreams = [...new Set(embeds)].map((url, index) => ({
+  const liveEmbeds = [];
+  for (const embed of [...new Set(embeds)]) {
+    if (await isLiveIframeUrl(embed, episodeUrl)) liveEmbeds.push(embed);
+  }
+
+  const embedStreams = liveEmbeds.map((url, index) => ({
     id: `hianime-embed-${index}`,
     label: index === 0 ? "HiAnime Embed" : `HiAnime Mirror ${index + 1}`,
     quality: url.includes("/dub") ? "dub" : url.includes("/sub") ? "sub" : "auto",
