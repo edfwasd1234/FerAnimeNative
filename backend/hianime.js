@@ -72,6 +72,18 @@ function absoluteUrlFor(base, url) {
   }
 }
 
+function attr(tag, name) {
+  if (!tag) return null;
+  const match = tag.match(new RegExp(`\\s${name}=["']([^"']+)["']`, "i"));
+  return match ? decodeHtml(match[1]) : null;
+}
+
+function imageFromTag(tag) {
+  const raw = attr(tag, "data-src") || attr(tag, "data-lazy-src") || attr(tag, "src");
+  if (!raw || /^data:/i.test(raw)) return null;
+  return absoluteUrl(raw);
+}
+
 function pushDirectUrl(out, seen, url, referer, label = "HiAnime Direct") {
   const clean = absoluteUrlFor(referer, url);
   if (!clean || seen.has(clean) || !/\.(?:m3u8|mp4)(?:[?#]|$)/i.test(clean)) return;
@@ -197,7 +209,7 @@ function parseCards(html) {
     if (!id || seen.has(id)) continue;
     seen.add(id);
 
-    const imgM = block.match(/<img[^>]+(?:data-src|src)="([^"]+)"[^>]*>/i);
+    const imgTag = block.match(/<img[^>]+>/i)?.[0] || "";
     const statusM = block.match(/<div\s+class="status[^"]*">([^<]+)<\/div>/i);
     const typeM = block.match(/<div\s+class="typez[^"]*">([^<]+)<\/div>/i);
     const langM = block.match(/<span\s+class="sb\s+([^"]+)">([^<]+)<\/span>/i);
@@ -209,8 +221,8 @@ function parseCards(html) {
       sourceId: SOURCE.id,
       title,
       subtitle: `${language} | ${typeM ? cleanText(typeM[1]) : "Anime"}`,
-      cover: absoluteUrl(imgM ? imgM[1] : null),
-      banner: absoluteUrl(imgM ? imgM[1] : null),
+      cover: imageFromTag(imgTag),
+      banner: imageFromTag(imgTag),
       year: null,
       score: null,
       genres: [language],
@@ -226,9 +238,69 @@ function parseCards(html) {
 
 async function search(query) {
   const q = (query || "").trim();
-  const url = q ? `${SOURCE.baseUrl}/?s=${encodeURIComponent(q)}` : `${SOURCE.baseUrl}/`;
-  const html = await requestText(url);
-  return { sourceId: SOURCE.id, items: parseCards(html), hasNextPage: false };
+  if (!q) {
+    const html = await requestText(`${SOURCE.baseUrl}/`);
+    return { sourceId: SOURCE.id, items: parseCards(html), hasNextPage: false };
+  }
+
+  const pages = [];
+  for (let page = 1; page <= 4; page += 1) {
+    try {
+      const html = await requestText(searchPageUrl(q, page));
+      pages.push(html);
+      if (!hasNextPage(html)) break;
+    } catch {
+      break;
+    }
+  }
+
+  const seen = new Set();
+  const items = pages
+    .flatMap(parseCards)
+    .filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+
+  return { sourceId: SOURCE.id, items: sortSearchResults(items, q), hasNextPage: pages.some(hasNextPage) };
+}
+
+function searchPageUrl(query, page = 1) {
+  const encoded = encodeURIComponent(query);
+  if (page > 1) return `${SOURCE.baseUrl}/page/${page}/?s=${encoded}`;
+  return `${SOURCE.baseUrl}/?s=${encoded}`;
+}
+
+function hasNextPage(html) {
+  return /class=["'][^"']*next\s+page-numbers/i.test(html || "") || /\/page\/\d+\/\?s=/i.test(html || "");
+}
+
+function normalizeTitleForSearch(value) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/\((sub|dub)\)/g, "")
+    .replace(/shippuuden/g, "shippuden")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function sortSearchResults(items, query) {
+  const normalizedQuery = normalizeTitleForSearch(query);
+  return [...items].sort((a, b) => {
+    const aTitle = normalizeTitleForSearch(a.title);
+    const bTitle = normalizeTitleForSearch(b.title);
+    const aExact = aTitle === normalizedQuery ? 0 : 1;
+    const bExact = bTitle === normalizedQuery ? 0 : 1;
+    if (aExact !== bExact) return aExact - bExact;
+    const aStarts = aTitle.startsWith(normalizedQuery) ? 0 : 1;
+    const bStarts = bTitle.startsWith(normalizedQuery) ? 0 : 1;
+    if (aStarts !== bStarts) return aStarts - bStarts;
+    const aDub = /\bdub\b/i.test(a.title) ? 1 : 0;
+    const bDub = /\bdub\b/i.test(b.title) ? 1 : 0;
+    if (aDub !== bDub) return aDub - bDub;
+    return a.title.localeCompare(b.title);
+  });
 }
 
 async function catalog(section = "recommended") {
@@ -247,8 +319,8 @@ async function details(id) {
   const html = await requestText(url);
   const titleM = html.match(/<h1\s+class="entry-title"[^>]*>([\s\S]*?)<\/h1>/i);
   const descM = html.match(/<div\s+class="mindesc">([\s\S]*?)<\/div>/i);
-  const coverM = html.match(/<img[^>]+class="[^"]*wp-post-image[^"]*"[^>]+(?:data-src|src)="([^"]+)"/i);
-  const bannerM = html.match(/<div\s+class="bigcover"[\s\S]*?<img[^>]+(?:data-src|src)="([^"]+)"/i);
+  const coverTag = html.match(/<img[^>]+class="[^"]*wp-post-image[^"]*"[^>]*>/i)?.[0] || "";
+  const bannerTag = html.match(/<div\s+class="bigcover"[\s\S]*?<img[^>]+>/i)?.[0] || "";
   const statusM = html.match(/<b>Status:<\/b>\s*([^<]+)<\/span>/i);
   const releasedM = html.match(/<b>Released:<\/b>\s*([^<]+)<\/span>/i);
   const scoreM = html.match(/<strong>Rating\s+([0-9.]+)<\/strong>/i);
@@ -270,8 +342,8 @@ async function details(id) {
     sourceId: SOURCE.id,
     title: titleM ? cleanText(titleM[1]) : id,
     subtitle: `${language} | ${typeM ? cleanText(typeM[1]) : "Anime"}`,
-    cover: absoluteUrl(coverM ? coverM[1] : null),
-    banner: absoluteUrl(bannerM ? bannerM[1] : coverM ? coverM[1] : null),
+    cover: imageFromTag(coverTag),
+    banner: imageFromTag(bannerTag) || imageFromTag(coverTag),
     year: releasedM ? Number.parseInt(cleanText(releasedM[1]), 10) || null : null,
     score: scoreM ? Math.round(Number.parseFloat(scoreM[1]) * 10) : null,
     genres,
@@ -287,6 +359,13 @@ async function episodes(itemId) {
   const titleM = html.match(/<h1\s+class="entry-title"[^>]*>([\s\S]*?)<\/h1>/i);
   const seriesTitle = titleM ? cleanText(titleM[1]) : itemId;
   const language = /(\(Dub\)|-dub\b)/i.test(`${itemId} ${seriesTitle}`) ? "Dub" : "Sub";
+  const out = parseEpisodesFromHtml(html, itemId, language);
+  if (out.length) return out;
+
+  return findEpisodeFallback(itemId, seriesTitle, language);
+}
+
+function parseEpisodesFromHtml(html, itemId, language) {
   const out = [];
   const re = /<li\s+data-index="[^"]*">\s*<a\s+href="([^"]+)"[^>]*>\s*<div\s+class="epl-num">([\s\S]*?)<\/div>\s*<div\s+class="epl-title">([\s\S]*?)<\/div>/gi;
   let match;
@@ -307,6 +386,54 @@ async function episodes(itemId) {
   }
 
   return out.sort((a, b) => a.number - b.number);
+}
+
+async function findEpisodeFallback(itemId, seriesTitle, language) {
+  const queries = [...new Set([
+    seriesTitle,
+    seriesTitle.replace(/shippuden/gi, "shippuuden"),
+    seriesTitle.replace(/shippuuden/gi, "shippuden")
+  ].map((value) => cleanText(value).replace(/\((sub|dub)\)/gi, "").trim()).filter(Boolean))];
+
+  const originalTitle = normalizeTitleForSearch(seriesTitle);
+  const candidates = [];
+  for (const query of queries) {
+    try {
+      const result = await search(query);
+      candidates.push(...result.items);
+    } catch {
+      // Empty primary pages are common during source churn; just keep trying nearby IDs.
+    }
+  }
+
+  const seen = new Set();
+  const ranked = candidates
+    .filter((item) => {
+      if (!item.id || item.id === itemId || seen.has(item.id)) return false;
+      seen.add(item.id);
+      if (!/movie/i.test(seriesTitle) && /movie/i.test(item.title)) return false;
+      return normalizeTitleForSearch(item.title) === originalTitle;
+    })
+    .sort((a, b) => {
+      const aLanguage = /\bdub\b/i.test(a.title) ? "Dub" : "Sub";
+      const bLanguage = /\bdub\b/i.test(b.title) ? "Dub" : "Sub";
+      if (aLanguage === language && bLanguage !== language) return -1;
+      if (bLanguage === language && aLanguage !== language) return 1;
+      return a.title.localeCompare(b.title);
+    });
+
+  for (const candidate of ranked) {
+    try {
+      const html = await requestText(`${SOURCE.baseUrl}/series/${encodeURIComponent(candidate.id)}/`);
+      const fallbackLanguage = /(\(Dub\)|-dub\b)/i.test(`${candidate.id} ${candidate.title}`) ? "Dub" : "Sub";
+      const out = parseEpisodesFromHtml(html, itemId, fallbackLanguage);
+      if (out.length) return out;
+    } catch {
+      // Try the next nearby candidate.
+    }
+  }
+
+  return [];
 }
 
 async function streams(episodeId) {
