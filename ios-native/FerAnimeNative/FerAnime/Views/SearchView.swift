@@ -7,7 +7,7 @@ struct SearchView: View {
     @State private var results: [Anime] = []
     @State private var searching = false
 
-    private let sources = [("anizone", "AniZone"), ("animeheaven", "AnimeHeaven"), ("hianime", "HiAnime"), ("animekai", "AnimeKai")]
+    private let sources = [("anizone", "AniZone"), ("animeheaven", "AnimeHeaven"), ("anigo", "AniGo"), ("animekai", "AnimeKai")]
 
     var body: some View {
         NavigationStack {

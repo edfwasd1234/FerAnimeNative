@@ -4,6 +4,7 @@ const animekai = require("./animekai");
 const anizone = require("./anizone");
 const animeheaven = require("./animeheaven");
 const hianime = require("./hianime");
+const anigo = require("./anigo");
 const metadata = require("./metadata");
 const mangakatana = require("./mangakatana");
 
@@ -11,11 +12,12 @@ const PORT = Number(process.env.PORT || process.env.FERANIME_RESOLVER_PORT || 45
 const resolvers = {
   animeheaven,
   hianime,
+  anigo,
   animekai,
   anizone
 };
 const defaultSourceId = "animeheaven";
-const sources = [animeheaven.SOURCE, hianime.SOURCE, animekai.SOURCE, anizone.SOURCE];
+const sources = [animeheaven.SOURCE, anigo.SOURCE, animekai.SOURCE, anizone.SOURCE];
 
 function sendJson(res, status, body) {
   res.writeHead(status, {

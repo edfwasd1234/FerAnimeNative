@@ -12,7 +12,7 @@ final class StreamResolver: ObservableObject {
     @Published var isResolving = false
     @Published var message = "Preparing playback"
 
-    private let sourceOrder = ["anizone", "animeheaven", "hianime", "animekai"]
+    private let sourceOrder = ["anizone", "animeheaven", "anigo", "animekai"]
 
     func resolve(
         client: ResolverClient,
@@ -80,7 +80,7 @@ final class StreamResolver: ObservableObject {
     }
 
     private func makePlayback(sourceId: String, episode: Episode, streams: [EpisodeStream]) -> ResolvedPlayback? {
-        let direct = sourceId == "hianime" ? [] : streams.filter(\.isDirect)
+        let direct = ["hianime", "anigo"].contains(sourceId) ? [] : streams.filter(\.isDirect)
         let embeds = streams.filter(\.isEmbed)
         guard !direct.isEmpty || !embeds.isEmpty else { return nil }
         return ResolvedPlayback(sourceId: sourceId, episode: episode, direct: direct, embeds: embeds)

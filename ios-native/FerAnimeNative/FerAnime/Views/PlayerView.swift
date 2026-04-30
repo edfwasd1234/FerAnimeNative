@@ -71,7 +71,7 @@ struct PlayerView: View {
         playback = result
         playbackMessage = ""
         selectedEmbedIndex = 0
-        if result?.sourceId == "hianime" {
+        if ["hianime", "anigo"].contains(result?.sourceId) {
             selectedStream = nil
             selectedEmbed = result?.embeds.first
         } else {
