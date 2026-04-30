@@ -159,15 +159,38 @@ async function details(id) {
 }
 
 async function episodes(itemId) {
+  const watchHtml = await requestText(`${SOURCE.baseUrl}/watch/${encodeURIComponent(itemId)}`).catch(() => "");
+  const languageCounts = parseLanguageCounts(watchHtml);
   const watchUrl = `${SOURCE.baseUrl}/watch/${encodeURIComponent(itemId)}`;
   const html = await renderDom(watchUrl).catch(() => "");
-  const out = parseRenderedEpisodes(html, itemId);
+  const out = expandLanguageEpisodes(parseRenderedEpisodes(html, itemId), languageCounts);
   if (out.length) return out;
 
   const detail = await details(itemId);
   const count = Number.parseInt((detail.subtitle || detail.progress || "").match(/Episodes:\s*([0-9]+)/i)?.[1] || "", 10);
   if (!Number.isFinite(count) || count <= 0) return [];
-  return Array.from({ length: count }, (_, index) => makeEpisode(itemId, index + 1, String(index + 1), `Episode ${index + 1}`));
+  const fallback = Array.from({ length: count }, (_, index) => makeBaseEpisode(itemId, index + 1, String(index + 1), `Episode ${index + 1}`));
+  return expandLanguageEpisodes(fallback, languageCounts);
+}
+
+function parseLanguageCounts(html) {
+  const sub = maxLanguageCount(html, "sub");
+  const dub = maxLanguageCount(html, "dub");
+  return {
+    sub,
+    dub
+  };
+}
+
+function maxLanguageCount(html, language) {
+  let max = 0;
+  const re = new RegExp(`<span\\s+class=["']${language}["'][^>]*>[\\s\\S]*?<\\/svg>\\s*([^<]+)<\\/span>`, "gi");
+  let match;
+  while ((match = re.exec(html || "")) !== null) {
+    const count = Number.parseInt(cleanText(match[1]), 10);
+    if (Number.isFinite(count) && count > max) max = count;
+  }
+  return max;
 }
 
 function parseRenderedEpisodes(html, itemId) {
@@ -184,33 +207,57 @@ function parseRenderedEpisodes(html, itemId) {
     const key = `${slug}:${label}`;
     if (!slug || seen.has(key) || Number.isNaN(number)) continue;
     seen.add(key);
-    out.push(makeEpisode(itemId, number, slug, title));
+    out.push(makeBaseEpisode(itemId, number, slug, title));
   }
 
   return out.sort((a, b) => a.number - b.number);
 }
 
-function makeEpisode(itemId, number, slug, title) {
+function expandLanguageEpisodes(episodes, languageCounts) {
+  const out = [];
+  for (const episode of episodes) {
+    if (!languageCounts.sub && !languageCounts.dub) {
+      out.push(makeEpisode(episode, "sub"));
+      continue;
+    }
+    if (episode.number <= languageCounts.sub) out.push(makeEpisode(episode, "sub"));
+    if (episode.number <= languageCounts.dub) out.push(makeEpisode(episode, "dub"));
+  }
+  return out;
+}
+
+function makeBaseEpisode(itemId, number, slug, title) {
   return {
-    id: `${itemId}|${slug}`,
-    animeId: itemId,
+    itemId,
+    slug,
+    baseTitle: title,
+    number
+  };
+}
+
+function makeEpisode(episode, language) {
+  const label = language === "dub" ? "Dub" : "Sub";
+  return {
+    id: `${episode.itemId}|${episode.slug}|${language}`,
+    animeId: episode.itemId,
     sourceId: SOURCE.id,
-    number,
-    title,
-    duration: "AniGo"
+    number: episode.number,
+    title: `${episode.baseTitle} (${label})`,
+    duration: label
   };
 }
 
 async function streams(episodeId) {
-  const [itemId, slug = "1"] = String(episodeId || "").split("|");
-  const watchUrl = `${SOURCE.baseUrl}/watch/${encodeURIComponent(itemId)}#ep=${encodeURIComponent(slug)}`;
+  const [itemId, slug = "1", language = "sub"] = String(episodeId || "").split("|");
+  const lang = language === "dub" ? "dub" : "sub";
+  const watchUrl = `${SOURCE.baseUrl}/watch/${encodeURIComponent(itemId)}?ep=${encodeURIComponent(slug)}&lang=${lang}`;
   const html = await renderDom(watchUrl).catch(() => "");
   const iframe = attr(html.match(/<iframe[^>]+src=["'][^"']+["'][^>]*>/i)?.[0] || "", "src");
   const url = absoluteUrl(iframe) || watchUrl;
   return [{
     id: "anigo-embed-0",
-    label: "AniGo Embed",
-    quality: "auto",
+    label: `AniGo ${lang === "dub" ? "Dub" : "Sub"} Embed`,
+    quality: lang,
     type: "iframe",
     url,
     headers: { Referer: `${SOURCE.baseUrl}/watch/${itemId}` }
