@@ -293,6 +293,30 @@ struct DiscoverView: View {
                         FrostedHeader(title: "Discover", subtitle: "Taste routes")
 
                         NavigationLink {
+                            MediaExploreView()
+                        } label: {
+                            LiquidGlass(cornerRadius: 26) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text("Movies & TV")
+                                            .font(.title3.weight(.bold))
+                                            .foregroundStyle(.white)
+                                        Text("Browse TMDB movies and shows in a separate tracking section.")
+                                            .font(.callout)
+                                            .foregroundStyle(Theme.secondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "film.stack.fill")
+                                        .font(.title2)
+                                        .foregroundStyle(Theme.appleBlue)
+                                }
+                                .padding(18)
+                            }
+                        }
+                        .buttonStyle(PressScaleStyle())
+                        .padding(.horizontal, 18)
+
+                        NavigationLink {
                             SearchView()
                         } label: {
                             LiquidGlass(cornerRadius: 26) {

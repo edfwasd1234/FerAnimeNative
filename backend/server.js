@@ -1,5 +1,7 @@
 const http = require("node:http");
 const { URL } = require("node:url");
+const { loadEnv } = require("./env");
+loadEnv();
 const animekai = require("./animekai");
 const anizone = require("./anizone");
 const animeheaven = require("./animeheaven");
@@ -7,6 +9,7 @@ const hianime = require("./hianime");
 const anigo = require("./anigo");
 const metadata = require("./metadata");
 const mangakatana = require("./mangakatana");
+const tmdb = require("./tmdb");
 
 const PORT = Number(process.env.PORT || process.env.FERANIME_RESOLVER_PORT || 4517);
 const resolvers = {
@@ -60,6 +63,37 @@ async function handle(req, res) {
 
     if (url.pathname === "/api/sources") {
       sendJson(res, 200, { sources });
+      return;
+    }
+
+    if (url.pathname === "/api/media/catalog") {
+      sendJson(
+        res,
+        200,
+        await tmdb.catalog({
+          kind: url.searchParams.get("kind") || "movie",
+          section: url.searchParams.get("section") || "trending",
+          page: Number(url.searchParams.get("page") || 1)
+        })
+      );
+      return;
+    }
+
+    if (url.pathname === "/api/media/search") {
+      sendJson(
+        res,
+        200,
+        await tmdb.search({
+          kind: url.searchParams.get("kind") || "movie",
+          q: url.searchParams.get("q") || "",
+          page: Number(url.searchParams.get("page") || 1)
+        })
+      );
+      return;
+    }
+
+    if (parts[0] === "api" && parts[1] === "media" && parts[2] && parts[3] === "details" && parts[4]) {
+      sendJson(res, 200, await tmdb.details({ kind: parts[2], id: decodeURIComponent(parts[4]) }));
       return;
     }
 

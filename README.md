@@ -13,6 +13,7 @@ The older Expo prototype is still in the repository for reference, but active de
 
 - Native SwiftUI app shell with Apple system navigation, `TabView`, `NavigationStack`, `Form`, `List`, and `.searchable`.
 - Real anime metadata on the home screen through Jikan.
+- Separate Movies & TV section powered by TMDB metadata through your local resolver.
 - Jikan-to-streaming source matching on anime detail pages.
 - Source matching across AniZone, AnimeHeaven, HiAnime, and AnimeKai resolver modules.
 - Native `AVPlayer` playback for HLS and MP4 streams.
@@ -32,6 +33,7 @@ The older Expo prototype is still in the repository for reference, but active de
 - Offline downloads are currently a queue/status feature, not full file downloading yet.
 - The resolver backend must be running on your computer or server while using the app.
 - Some sources may return embeds instead of direct HLS/MP4 streams.
+- Movies and TV are metadata/tracking only. They do not include streaming playback.
 
 ## Repository Layout
 
@@ -53,6 +55,18 @@ Install dependencies:
 npm.cmd install
 ```
 
+Create a local `.env` file for private API keys. This file is ignored by Git:
+
+```text
+TMDB_READ_ACCESS_TOKEN=your_tmdb_read_access_token_here
+```
+
+You can also use the v3 key instead:
+
+```text
+TMDB_API_KEY=your_tmdb_api_key_here
+```
+
 Start the resolver:
 
 ```powershell
@@ -63,6 +77,18 @@ Check health:
 
 ```text
 http://127.0.0.1:4517/health
+```
+
+Check TMDB movie metadata:
+
+```text
+http://127.0.0.1:4517/api/media/catalog?kind=movie&section=trending
+```
+
+Check TMDB TV metadata:
+
+```text
+http://127.0.0.1:4517/api/media/catalog?kind=show&section=popular
 ```
 
 Expected response:

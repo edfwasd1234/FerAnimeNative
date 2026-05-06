@@ -50,6 +50,26 @@ final class ResolverClient: ObservableObject {
         try await get("/api/sources", as: SourcesResponse.self).sources
     }
 
+    func mediaCatalog(kind: MediaKind, section: String, page: Int = 1) async throws -> [MediaItem] {
+        try await get(
+            "/api/media/catalog",
+            query: ["kind": kind.rawValue, "section": section, "page": String(page)],
+            as: MediaCatalogResponse.self
+        ).items
+    }
+
+    func mediaSearch(_ query: String, kind: MediaKind, page: Int = 1) async throws -> [MediaItem] {
+        try await get(
+            "/api/media/search",
+            query: ["kind": kind.rawValue, "q": query, "page": String(page)],
+            as: MediaSearchResponse.self
+        ).items
+    }
+
+    func mediaDetails(kind: MediaKind, id: String) async throws -> MediaItem {
+        try await get("/api/media/\(kind.rawValue.pathEncoded)/details/\(id.pathEncoded)", as: MediaItem.self)
+    }
+
     private func get<T: Decodable>(_ path: String, query: [String: String] = [:], as type: T.Type) async throws -> T {
         guard let baseURL,
               var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {

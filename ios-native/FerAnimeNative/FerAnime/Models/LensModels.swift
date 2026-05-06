@@ -32,9 +32,15 @@ struct MediaItem: Codable, Identifiable, Hashable {
     let title: String
     let subtitle: String?
     let artwork: String?
+    let banner: String?
     let year: Int?
+    let score: Double?
     let genres: [String]
     let synopsis: String?
+    let status: String?
+    let seasons: [MediaSeason]?
+    let cast: [MediaCastMember]?
+    let similar: [MediaItem]?
 
     init(
         id: String,
@@ -43,9 +49,15 @@ struct MediaItem: Codable, Identifiable, Hashable {
         title: String,
         subtitle: String? = nil,
         artwork: String? = nil,
+        banner: String? = nil,
         year: Int? = nil,
+        score: Double? = nil,
         genres: [String] = [],
-        synopsis: String? = nil
+        synopsis: String? = nil,
+        status: String? = nil,
+        seasons: [MediaSeason]? = nil,
+        cast: [MediaCastMember]? = nil,
+        similar: [MediaItem]? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -53,9 +65,15 @@ struct MediaItem: Codable, Identifiable, Hashable {
         self.title = title
         self.subtitle = subtitle
         self.artwork = artwork
+        self.banner = banner
         self.year = year
+        self.score = score
         self.genres = genres
         self.synopsis = synopsis
+        self.status = status
+        self.seasons = seasons
+        self.cast = cast
+        self.similar = similar
     }
 }
 
@@ -200,9 +218,12 @@ extension MediaItem {
             title: anime.title,
             subtitle: anime.subtitle,
             artwork: anime.cover ?? anime.banner,
+            banner: anime.banner ?? anime.cover,
             year: anime.year,
+            score: anime.score,
             genres: anime.genres,
-            synopsis: anime.synopsis
+            synopsis: anime.synopsis,
+            status: anime.status
         )
     }
 }
