@@ -650,27 +650,6 @@ struct ManualWatchLogView: View {
     }
 }
 
-struct LensMetric: View {
-    let title: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(Theme.tertiary)
-            Text(value)
-                .font(.headline.weight(.black))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-    }
-}
-
 struct RadarChart: View {
     let values: [TasteAxis: Double]
 
