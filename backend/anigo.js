@@ -91,6 +91,8 @@ function parseCards(html) {
     seen.add(id);
 
     const imgTag = block.match(/<img[^>]+>/i)?.[0] || "";
+    // prefer data-src (lazy-load real image) over src (placeholder)
+    const imgSrc = attr(imgTag, "data-src") || attr(imgTag, "src");
     const titleTag = block.match(/<h6[^>]*class=["'][^"']*title[^"']*["'][^>]*>[\s\S]*?<\/h6>/i)?.[0] || "";
     const title = cleanText(titleTag) || cleanText(attr(imgTag, "alt"));
     if (!title) continue;
@@ -101,7 +103,7 @@ function parseCards(html) {
     const dub = cleanText(block.match(/<span\s+class=["']dub["'][^>]*>[\s\S]*?<\/svg>\s*([^<]+)<\/span>/i)?.[1] || "");
     const languages = [sub ? `Sub ${sub}` : "", dub ? `Dub ${dub}` : ""].filter(Boolean).join(" | ");
 
-    items.push(makeAnime(id, title, attr(imgTag, "src"), {
+    items.push(makeAnime(id, title, imgSrc, {
       subtitle: [languages, type, rating].filter(Boolean).join(" | ") || "AniGo",
       genres: [sub ? "Sub" : "", dub ? "Dub" : ""].filter(Boolean),
       status: "Planned"
@@ -132,8 +134,10 @@ async function catalog(section = "recommended") {
 async function details(id) {
   const html = await requestText(`${SOURCE.baseUrl}/watch/${encodeURIComponent(id)}`);
   const title = cleanText(html.match(/<div\s+class=["']title["'][^>]*>([\s\S]*?)<\/div>/i)?.[1] || "") || id;
-  const poster = attr(html.match(/<div\s+class=["']poster["'][\s\S]*?<img[^>]+>/i)?.[0] || "", "src");
-  const banner = (html.match(/background-image:\s*url\(['"]?([^'")]+)['"]?\)/i) || [])[1];
+  const posterTag = html.match(/<div\s+class=["']poster["'][\s\S]*?<img[^>]+>/i)?.[0] || "";
+  // prefer data-src (lazy-load) over src; the CSS background-image is a blurred backdrop
+  // and looks distorted when used as a portrait banner, so we skip it
+  const poster = attr(posterTag, "data-src") || attr(posterTag, "src");
   const synopsis = cleanText(html.match(/<div\s+class=["']desc["'][^>]*>([\s\S]*?)<\/div>/i)?.[1] || "");
   const genres = [];
   const genreBlock = html.match(/<div\s+class=["']genre["'][^>]*>([\s\S]*?)<\/div>/i)?.[1] || "";
@@ -148,8 +152,8 @@ async function details(id) {
   const year = cleanText(html.match(/Premiered:[\s\S]*?year=([0-9]{4})/i)?.[1] || "");
   const status = cleanText(html.match(/Status:\s*<span>([^<]+)/i)?.[1] || "");
 
+  // No separate banner — makeAnime falls back to cover so hero uses the proper poster
   return makeAnime(id, title, poster, {
-    banner,
     synopsis,
     genres,
     year,

@@ -15,6 +15,19 @@ struct AnimeDetailView: View {
     private var playbackAnime: Anime { resolvedAnime ?? display }
     private var sourceId: String { playbackAnime.sourceId ?? display.sourceId ?? anime.sourceId ?? "jikan" }
 
+    // True when the source returns distinct sub and dub episode rows (AniGo pattern)
+    private var hasDubVariants: Bool {
+        episodes.contains { $0.duration?.lowercased() == "dub" }
+    }
+
+    private var filteredEpisodes: [Episode] {
+        guard hasDubVariants else { return episodes }
+        return episodes.filter { ep in
+            let lang = (ep.duration ?? "sub").lowercased()
+            return lang == preferredLanguage.lowercased()
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             PremiumBackdrop()
@@ -99,7 +112,7 @@ struct AnimeDetailView: View {
                 }
 
                 HStack(spacing: 10) {
-                    if let first = episodes.first {
+                    if let first = filteredEpisodes.first ?? episodes.first {
                         NavigationLink {
                             PlayerView(anime: playbackAnime, episode: first)
                         } label: {
@@ -240,33 +253,35 @@ struct AnimeDetailView: View {
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                 Spacer()
-                // Sub/Dub toggle
-                HStack(spacing: 0) {
-                    ForEach(["sub", "dub"], id: \.self) { lang in
-                        Button {
-                            preferredLanguage = lang
-                            appState.setShowLanguagePreference(lang, for: anime.id)
-                            Haptics.selection()
-                        } label: {
-                            Text(lang.uppercased())
-                                .font(.caption2.weight(.bold))
-                                .tracking(0.6)
-                                .foregroundStyle(preferredLanguage == lang ? .white : Theme.secondary)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(
-                                    preferredLanguage == lang ? Theme.appleBlue.opacity(0.30) : Color.clear,
-                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                )
+                // Sub/Dub toggle — only shown when the source returns distinct sub+dub rows
+                if hasDubVariants {
+                    HStack(spacing: 0) {
+                        ForEach(["sub", "dub"], id: \.self) { lang in
+                            Button {
+                                preferredLanguage = lang
+                                appState.setShowLanguagePreference(lang, for: anime.id)
+                                Haptics.selection()
+                            } label: {
+                                Text(lang.uppercased())
+                                    .font(.caption2.weight(.bold))
+                                    .tracking(0.6)
+                                    .foregroundStyle(preferredLanguage == lang ? .white : Theme.secondary)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        preferredLanguage == lang ? Theme.appleBlue.opacity(0.30) : Color.clear,
+                                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    )
+                            }
+                            .buttonStyle(PressScaleStyle())
                         }
-                        .buttonStyle(PressScaleStyle())
                     }
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.10), lineWidth: 0.75)
+                    )
                 }
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.white.opacity(0.10), lineWidth: 0.75)
-                )
                 Button {
                     appState.queueDownload(anime: playbackAnime, episode: nil)
                 } label: {
@@ -275,7 +290,7 @@ struct AnimeDetailView: View {
                         .foregroundStyle(Theme.appleBlue)
                 }
                 .disabled(episodes.isEmpty)
-                .padding(.leading, 8)
+                .padding(.leading, hasDubVariants ? 8 : 0)
             }
             .padding(.horizontal, 20)
 
@@ -293,7 +308,7 @@ struct AnimeDetailView: View {
                 .padding(.horizontal, 20)
             } else {
                 LazyVStack(spacing: 10) {
-                    ForEach(episodes) { episode in
+                    ForEach(filteredEpisodes) { episode in
                         EpisodeRow(episode: episode, anime: playbackAnime)
                             .padding(.horizontal, 20)
                             .scrollTransition(.interactive, axis: .vertical) { content, phase in
