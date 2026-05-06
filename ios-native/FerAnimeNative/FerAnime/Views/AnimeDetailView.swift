@@ -15,66 +15,101 @@ struct AnimeDetailView: View {
     private var sourceId: String { playbackAnime.sourceId ?? display.sourceId ?? anime.sourceId ?? "jikan" }
 
     var body: some View {
-        ZStack {
-            CinematicBackground()
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
-                    hero
-                        .glassAppear()
-                    synopsis
-                        .glassAppear(delay: 0.06)
-                    sourceSection
-                        .glassAppear(delay: 0.08)
-                    episodeList
-                        .glassAppear(delay: 0.10)
+        ZStack(alignment: .top) {
+            PremiumBackdrop()
+
+            // Blurred ambient banner behind everything
+            AsyncImage(url: URL(string: display.banner ?? display.cover ?? "")) { phase in
+                if case .success(let img) = phase {
+                    img.resizable().scaledToFill()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 360)
+                        .blur(radius: 52)
+                        .opacity(0.26)
+                        .clipped()
+                        .ignoresSafeArea(edges: .top)
                 }
-                .padding(.bottom, 92)
+            }
+
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    heroSection
+                        .glassAppear()
+                    contentSection
+                        .glassAppear(delay: 0.08)
+                }
+                .padding(.bottom, 100)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
         .task { await load() }
     }
 
-    private var hero: some View {
-        GeometryReader { proxy in
-            let heroHeight = min(max(proxy.size.height * 0.62, 320), 380)
+    // MARK: - Hero
 
-            ZStack(alignment: .bottomLeading) {
-                PosterImage(url: URL(string: display.banner ?? display.cover ?? ""), cornerRadius: 0)
-                    .frame(height: heroHeight)
-                    .clipped()
-                    .overlay {
-                        Rectangle()
-                            .fill(.black.opacity(0.24))
+    private var heroSection: some View {
+        ZStack(alignment: .bottom) {
+            PosterImage(url: URL(string: display.banner ?? display.cover ?? ""), cornerRadius: 0)
+                .frame(maxWidth: .infinity)
+                .frame(height: 400)
+
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: .black.opacity(0.18), location: 0.42),
+                    .init(color: Theme.background.opacity(0.94), location: 0.88),
+                    .init(color: Theme.background, location: 1.0)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            VStack(alignment: .leading, spacing: 14) {
+                Text(display.title)
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .minimumScaleFactor(0.72)
+                    .foregroundStyle(.white)
+                    .lineLimit(3)
+                    .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
+
+                HStack(spacing: 12) {
+                    if let score = display.score {
+                        MetaBadge(systemImage: "star.fill", text: String(format: "%.1f", score), color: .yellow)
                     }
-
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(display.title)
-                        .font(.system(size: 31, weight: .bold, design: .rounded))
-                        .minimumScaleFactor(0.75)
-                        .foregroundStyle(.white)
-                        .lineLimit(4)
-
-                    HStack(spacing: 10) {
-                        if let score = display.score {
-                            Label(String(format: "%.1f", score), systemImage: "star.fill")
-                        }
-                        if let year = display.year {
-                            Text(String(year))
-                        }
-                        Text(sourceId)
+                    if let year = display.year {
+                        MetaBadge(systemImage: "calendar", text: String(year))
                     }
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.white.opacity(0.78))
+                    MetaBadge(systemImage: "tv", text: sourceId)
+                    if let status = display.status {
+                        MetaBadge(systemImage: "circle.fill", text: status)
+                    }
+                }
 
+                if !display.genres.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(display.genres.prefix(6), id: \.self) { genre in
+                                GlassChip(text: genre)
+                            }
+                        }
+                    }
+                }
+
+                HStack(spacing: 10) {
                     if let first = episodes.first {
                         NavigationLink {
                             PlayerView(anime: playbackAnime, episode: first)
                         } label: {
-                            SystemPlayLabel()
+                            Label("Play", systemImage: "play.fill")
+                                .font(.headline.weight(.bold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .foregroundStyle(.white)
+                                .background(Theme.appleBlue, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
+                        .buttonStyle(PressScaleStyle())
                         .simultaneousGesture(TapGesture().onEnded { Haptics.impact(.medium) })
                     }
 
@@ -82,55 +117,80 @@ struct AnimeDetailView: View {
                         appState.addToLensWatchlist(MediaItem(anime: playbackAnime))
                         Haptics.impact(.light)
                     } label: {
-                        Label("Save to Lens", systemImage: "plus")
+                        Image(systemName: "plus")
+                            .font(.headline.weight(.bold))
+                            .frame(width: 52, height: 52)
+                            .foregroundStyle(.white)
+                            .background(Theme.panel, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(Theme.strokeBright, lineWidth: 0.75)
+                            )
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
+                    .buttonStyle(PressScaleStyle())
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 22)
+        }
+    }
+
+    // MARK: - Content
+
+    private var contentSection: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            synopsisSection
+            sourceSection
+            episodeSection
+        }
+        .padding(.top, 20)
+    }
+
+    private var synopsisSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Story")
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 20)
+
+            LiquidGlass(cornerRadius: 20) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(display.synopsis?.isEmpty == false ? display.synopsis! : "No synopsis available from this source yet.")
+                        .font(.callout)
+                        .lineSpacing(5)
+                        .foregroundStyle(Theme.secondary)
+                        .lineLimit(expanded ? nil : 4)
+
+                    Button(expanded ? "Show less" : "Read more") {
+                        withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) { expanded.toggle() }
+                    }
+                    .font(.callout.weight(.bold))
+                    .foregroundStyle(Theme.appleBlue)
                 }
                 .padding(18)
             }
+            .padding(.horizontal, 20)
         }
-        .frame(height: 400)
-    }
-
-    private var synopsis: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Story")
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(.white)
-
-            Text(display.synopsis?.isEmpty == false ? display.synopsis! : "No synopsis available from this source yet.")
-                .font(.callout)
-                .lineSpacing(4)
-                .foregroundStyle(Theme.secondary)
-                .lineLimit(expanded ? nil : 4)
-
-            Button(expanded ? "Show less" : "Read more") {
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) { expanded.toggle() }
-            }
-            .font(.callout.weight(.bold))
-            .foregroundStyle(Theme.appleBlue)
-        }
-        .padding(.horizontal, 18)
     }
 
     private var sourceSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Source")
-                    .font(.headline.weight(.semibold))
-                Spacer()
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
                 if isMatchingSources {
-                    ProgressView()
+                    ProgressView().scaleEffect(0.8).padding(.leading, 4)
                 }
+                Spacer()
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 20)
 
             if sourceMatches.isEmpty {
-                Text(isMatchingSources ? "Matching Jikan metadata to streaming sources..." : "No streaming source matched yet.")
+                Text(isMatchingSources ? "Matching sources…" : "No streaming source matched yet.")
                     .font(.footnote)
                     .foregroundStyle(Theme.secondary)
-                    .padding(.horizontal, 18)
+                    .padding(.horizontal, 20)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
@@ -140,108 +200,102 @@ struct AnimeDetailView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(match.sourceId ?? "source")
-                                        .font(.caption.weight(.semibold))
+                                        .font(.caption2.weight(.bold))
                                         .foregroundStyle(Theme.appleBlue)
+                                        .textCase(.uppercase)
+                                        .tracking(0.8)
                                     Text(match.title)
                                         .font(.footnote.weight(.semibold))
+                                        .foregroundStyle(.white)
                                         .lineLimit(1)
                                 }
-                                .frame(width: 170, alignment: .leading)
+                                .frame(width: 164, alignment: .leading)
+                                .padding(14)
+                                .background(
+                                    resolvedAnime?.id == match.id ? Theme.appleBlue.opacity(0.18) : Theme.panel,
+                                    in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .stroke(
+                                            resolvedAnime?.id == match.id ? Theme.appleBlue.opacity(0.45) : Theme.stroke,
+                                            lineWidth: 0.75
+                                        )
+                                )
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.regular)
+                            .buttonStyle(PressScaleStyle())
                         }
                     }
-                    .padding(.horizontal, 18)
+                    .padding(.horizontal, 20)
                 }
             }
         }
     }
 
-    private var episodeList: some View {
+    private var episodeSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text("Episodes")
-                    .font(.headline.weight(.semibold))
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
                 Spacer()
                 Button {
                     appState.queueDownload(anime: playbackAnime, episode: nil)
                 } label: {
-                    Label("Download All", systemImage: "arrow.down.circle")
+                    Label("All", systemImage: "arrow.down.circle")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.appleBlue)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
                 .disabled(episodes.isEmpty)
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 20)
 
-            ForEach(episodes) { episode in
-                LiquidGlass(cornerRadius: 20, glow: Theme.appleBlue.opacity(0.08)) {
-                    HStack(spacing: 14) {
-                        NavigationLink {
-                            PlayerView(anime: playbackAnime, episode: episode)
-                        } label: {
-                            HStack(spacing: 14) {
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(Color.secondary.opacity(0.18))
-                                    .frame(width: 92, height: 58)
-                                    .overlay {
-                                        Image(systemName: "play.fill")
-                                            .foregroundStyle(.white)
-                                    }
-
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Episode \(Int(episode.number))")
-                                        .font(.caption.weight(.bold))
-                                        .foregroundStyle(Theme.appleBlue)
-                                    Text(episode.title)
-                                        .font(.callout.weight(.semibold))
-                                        .lineLimit(2)
-                                }
-                            }
-                        }
-                        .buttonStyle(.plain)
-
-                        Spacer()
-
-                        Button {
-                            appState.queueDownload(anime: playbackAnime, episode: episode)
-                        } label: {
-                            Image(systemName: "arrow.down.circle")
-                                .font(.title3)
-                        }
-                        .buttonStyle(.borderless)
+            if episodes.isEmpty && !isMatchingSources {
+                LiquidGlass(cornerRadius: 18) {
+                    HStack {
+                        Image(systemName: "film.stack")
+                            .foregroundStyle(Theme.tertiary)
+                        Text("No episodes found from this source.")
+                            .font(.callout)
+                            .foregroundStyle(Theme.secondary)
                     }
-                    .padding(12)
+                    .padding(18)
                 }
-                .padding(.horizontal, 18)
-                .scrollTransition(.interactive, axis: .vertical) { content, phase in
-                    content
-                        .scaleEffect(phase.isIdentity ? 1 : 0.96)
-                        .opacity(phase.isIdentity ? 1 : 0.68)
+                .padding(.horizontal, 20)
+            } else {
+                LazyVStack(spacing: 10) {
+                    ForEach(episodes) { episode in
+                        EpisodeRow(episode: episode, anime: playbackAnime)
+                            .padding(.horizontal, 20)
+                            .scrollTransition(.interactive, axis: .vertical) { content, phase in
+                                content
+                                    .scaleEffect(phase.isIdentity ? 1 : 0.96)
+                                    .opacity(phase.isIdentity ? 1 : 0.70)
+                            }
+                    }
                 }
             }
         }
     }
 
+    // MARK: - Load
+
     private func load() async {
-        if let sourceId = anime.sourceId, sourceId != "jikan" {
-            let detailKey = appState.cacheKey(sourceId, anime.id, "details")
-            let episodesKey = appState.cacheKey(sourceId, anime.id, "episodes")
-            if let cachedDetails = appState.cachedAnimeDetails[detailKey] {
-                details = cachedDetails
-            } else if let loadedDetails = try? await appState.client.details(sourceId: sourceId, animeId: anime.id) {
-                details = loadedDetails
-                appState.cachedAnimeDetails[detailKey] = loadedDetails
+        if let sid = anime.sourceId, sid != "jikan" {
+            let detailKey = appState.cacheKey(sid, anime.id, "details")
+            let episodesKey = appState.cacheKey(sid, anime.id, "episodes")
+            if let cached = appState.cachedAnimeDetails[detailKey] {
+                details = cached
+            } else if let loaded = try? await appState.client.details(sourceId: sid, animeId: anime.id) {
+                details = loaded
+                appState.cachedAnimeDetails[detailKey] = loaded
             }
-            if let cachedEpisodes = appState.cachedEpisodes[episodesKey] {
-                episodes = cachedEpisodes
+            if let cached = appState.cachedEpisodes[episodesKey] {
+                episodes = cached
             } else {
-                let loadedEpisodes = (try? await appState.client.episodes(sourceId: sourceId, animeId: anime.id)) ?? []
-                episodes = loadedEpisodes
-                if !loadedEpisodes.isEmpty {
-                    appState.cachedEpisodes[episodesKey] = loadedEpisodes
-                }
+                let loaded = (try? await appState.client.episodes(sourceId: sid, animeId: anime.id)) ?? []
+                episodes = loaded
+                if !loaded.isEmpty { appState.cachedEpisodes[episodesKey] = loaded }
             }
             return
         }
@@ -250,10 +304,10 @@ struct AnimeDetailView: View {
         if let cachedMatches = appState.cachedSourceMatches[matchesKey], !cachedMatches.isEmpty {
             sourceMatches = cachedMatches
             if let first = cachedMatches.first,
-               let sourceId = first.sourceId,
-               let cachedEpisodes = appState.cachedEpisodes[appState.cacheKey(sourceId, first.id, "episodes")] {
+               let sid = first.sourceId,
+               let cachedEps = appState.cachedEpisodes[appState.cacheKey(sid, first.id, "episodes")] {
                 resolvedAnime = first
-                episodes = cachedEpisodes
+                episodes = cachedEps
                 return
             }
         }
@@ -263,12 +317,12 @@ struct AnimeDetailView: View {
         if sourceMatches.isEmpty { sourceMatches = [] }
         for source in ["anizone", "animeheaven", "anigo", "animekai"] {
             let match: Anime
-            if let cachedMatch = sourceMatches.first(where: { $0.sourceId == source }) {
-                match = cachedMatch
+            if let cached = sourceMatches.first(where: { $0.sourceId == source }) {
+                match = cached
             } else {
-                guard let loadedMatch = try? await appState.client.search(anime.title, sourceId: source).first else { continue }
-                match = loadedMatch
-                sourceMatches.append(loadedMatch)
+                guard let loaded = try? await appState.client.search(anime.title, sourceId: source).first else { continue }
+                match = loaded
+                sourceMatches.append(loaded)
             }
             let episodesKey = appState.cacheKey(source, match.id, "episodes")
             let sourceEpisodes: [Episode]
@@ -277,35 +331,81 @@ struct AnimeDetailView: View {
             } else {
                 let loaded = (try? await appState.client.episodes(sourceId: source, animeId: match.id)) ?? []
                 sourceEpisodes = loaded
-                if !loaded.isEmpty {
-                    appState.cachedEpisodes[episodesKey] = loaded
-                }
+                if !loaded.isEmpty { appState.cachedEpisodes[episodesKey] = loaded }
             }
             if resolvedAnime == nil, !sourceEpisodes.isEmpty {
                 resolvedAnime = match
                 episodes = sourceEpisodes
             }
         }
-        if !sourceMatches.isEmpty {
-            appState.cachedSourceMatches[matchesKey] = sourceMatches
-        }
+        if !sourceMatches.isEmpty { appState.cachedSourceMatches[matchesKey] = sourceMatches }
     }
 
     private func selectSource(_ match: Anime) async {
-        guard let sourceId = match.sourceId else { return }
+        guard let sid = match.sourceId else { return }
         isMatchingSources = true
         defer { isMatchingSources = false }
         resolvedAnime = match
-        let episodesKey = appState.cacheKey(sourceId, match.id, "episodes")
+        let episodesKey = appState.cacheKey(sid, match.id, "episodes")
         if let cached = appState.cachedEpisodes[episodesKey] {
             episodes = cached
         } else {
-            let loaded = (try? await appState.client.episodes(sourceId: sourceId, animeId: match.id)) ?? []
+            let loaded = (try? await appState.client.episodes(sourceId: sid, animeId: match.id)) ?? []
             episodes = loaded
-            if !loaded.isEmpty {
-                appState.cachedEpisodes[episodesKey] = loaded
-            }
+            if !loaded.isEmpty { appState.cachedEpisodes[episodesKey] = loaded }
         }
         Haptics.impact(.light)
+    }
+}
+
+// MARK: - Episode Row
+
+private struct EpisodeRow: View {
+    let episode: Episode
+    let anime: Anime
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        LiquidGlass(cornerRadius: 18, glow: .clear) {
+            HStack(spacing: 14) {
+                NavigationLink {
+                    PlayerView(anime: anime, episode: episode)
+                } label: {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Theme.panel)
+                                .frame(width: 90, height: 56)
+                            Image(systemName: "play.fill")
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(Theme.appleBlue)
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Episode \(Int(episode.number))")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(Theme.appleBlue)
+                            Text(episode.title)
+                                .font(.callout.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .lineLimit(2)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 0)
+
+                Button {
+                    appState.queueDownload(anime: anime, episode: episode)
+                } label: {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.title3)
+                        .foregroundStyle(Theme.tertiary)
+                }
+                .buttonStyle(.borderless)
+            }
+            .padding(12)
+        }
     }
 }

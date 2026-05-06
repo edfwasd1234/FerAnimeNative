@@ -15,12 +15,11 @@ struct HomeView: View {
         let combined = recommended + trending
         var seen = Set<String>()
         return combined.filter { anime in
-            if seen.contains(anime.id) { return false }
+            guard !seen.contains(anime.id) else { return false }
             seen.insert(anime.id)
             return true
         }
-        .prefix(6)
-        .map { $0 }
+        .prefix(6).map { $0 }
     }
 
     private var continueItems: [WatchProgress] {
@@ -36,11 +35,8 @@ struct HomeView: View {
         var seen = Set<String>()
         let personalized = pool.filter { anime in
             guard !watchedTitles.contains(anime.title.lowercased()), !seen.contains(anime.id) else { return false }
-            let hasGenreMatch = !watchedGenres.isEmpty && anime.genres.contains { watchedGenres.contains($0) }
-            if hasGenreMatch {
-                seen.insert(anime.id)
-                return true
-            }
+            let hasMatch = !watchedGenres.isEmpty && anime.genres.contains { watchedGenres.contains($0) }
+            if hasMatch { seen.insert(anime.id); return true }
             return false
         }
         if !personalized.isEmpty { return Array(personalized.prefix(12)) }
@@ -50,125 +46,130 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                CinematicBackground()
+                PremiumBackdrop()
 
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 24) {
-                        lensPrelude
-                        hero
+                    LazyVStack(alignment: .leading, spacing: 28) {
+                        lensPickBanner
+                            .glassAppear(delay: 0.04)
+
+                        heroCarousel
+                            .glassAppear(delay: 0.08)
+
                         if !continueItems.isEmpty {
-                            ContinueWatchingRail(items: continueItems)
+                            continueWatchingRail
+                                .glassAppear(delay: 0.12)
                         }
-                        LensWatchlistRail(items: Array(appState.lensWatchlist.prefix(8)))
-                        LensFriendActivityPlaceholder()
+
+                        if !appState.lensWatchlist.isEmpty {
+                            watchlistRail
+                                .glassAppear(delay: 0.16)
+                        }
+
                         if !becauseYouWatched.isEmpty {
-                            AnimeRail(title: appState.continueWatching.isEmpty ? "Recommended For You" : "Because You Watched", items: becauseYouWatched)
+                            AnimeRail(
+                                title: appState.continueWatching.isEmpty ? "Recommended" : "Because You Watched",
+                                items: becauseYouWatched
+                            )
+                            .glassAppear(delay: 0.18)
                         }
-                        AnimeRail(title: "Trending", items: trending)
+
+                        AnimeRail(title: "Trending Now", items: trending)
+                            .glassAppear(delay: 0.20)
+
                         AnimeRail(title: "New Episodes", items: new)
+                            .glassAppear(delay: 0.22)
+
                         AnimeRail(title: "Action", items: action)
+                            .glassAppear(delay: 0.24)
                     }
-                    .padding(.top, 8)
-                    .padding(.bottom, 92)
+                    .padding(.top, 12)
+                    .padding(.bottom, 100)
                 }
                 .refreshable { await load(force: true) }
             }
-            .navigationTitle("Lens")
+            .navigationTitle("FerAnime")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Text("FerAnime")
+                        .font(.system(size: 20, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink { SearchView() } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.headline)
+                            .foregroundStyle(Theme.appleBlue)
+                            .frame(width: 36, height: 36)
+                            .background(Theme.panel, in: Circle())
+                    }
+                }
+            }
             .navigationDestination(for: Anime.self) { AnimeDetailView(anime: $0) }
             .navigationDestination(for: AnimeSectionRoute.self) { route in
                 AnimeSectionView(title: route.title, items: route.items)
             }
             .task {
-                withAnimation(.spring(response: 0.7, dampingFraction: 0.82)) {
-                    appeared = true
-                }
+                withAnimation(.spring(response: 0.7, dampingFraction: 0.82)) { appeared = true }
                 applyCachedCatalogs()
                 if recommended.isEmpty && trending.isEmpty && new.isEmpty && action.isEmpty {
                     await load(force: false)
                 }
             }
-            .task(id: heroItems.count) {
-                await autoAdvanceHero()
-            }
+            .task(id: heroItems.count) { await autoAdvanceHero() }
         }
     }
 
-    private var lensPrelude: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            FrostedHeader(title: "Lens", subtitle: "Personal watch companion")
+    // MARK: - Lens Pick Banner
 
-            NavigationLink {
-                LensPickView()
-            } label: {
-                LiquidGlass(cornerRadius: 30, glow: Theme.appleBlue.opacity(0.18)) {
-                    HStack(spacing: 16) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Find My Watch")
-                                .font(.system(size: 28, weight: .black, design: .rounded))
-                                .foregroundStyle(.white)
-                            Text("One pick tuned to your mood, time, company, and services.")
-                                .font(.callout.weight(.semibold))
-                                .foregroundStyle(Theme.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer()
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundStyle(Theme.appleBlue)
-                            .frame(width: 58, height: 58)
-                            .background(Color.white.opacity(0.08), in: Circle())
+    private var lensPickBanner: some View {
+        NavigationLink { LensPickView() } label: {
+            LiquidGlass(cornerRadius: 28, glow: Theme.appleBlue.opacity(0.16)) {
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Find My Watch")
+                            .font(.system(size: 22, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text("One pick tuned to your mood, time & services.")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Theme.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(18)
+                    Spacer()
+                    ZStack {
+                        Circle()
+                            .fill(Theme.appleBlue.opacity(0.18))
+                            .frame(width: 56, height: 56)
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundStyle(Theme.appleBlue)
+                    }
                 }
+                .padding(18)
             }
-            .buttonStyle(PressScaleStyle())
-            .padding(.horizontal, 18)
-
-            LensFingerprintStrip()
-                .padding(.horizontal, 18)
         }
+        .buttonStyle(PressScaleStyle())
+        .padding(.horizontal, 20)
     }
 
-    private var hero: some View {
+    // MARK: - Hero Carousel
+
+    private var heroCarousel: some View {
         Group {
             if heroItems.isEmpty {
-                ProgressView("Loading anime")
-                    .frame(maxWidth: .infinity, minHeight: 318)
-                    .padding(.horizontal, 16)
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(Theme.panel)
+                    .shimmer()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 330)
+                    .padding(.horizontal, 20)
             } else {
                 TabView(selection: $heroIndex) {
                     ForEach(Array(heroItems.enumerated()), id: \.element.id) { index, anime in
                         NavigationLink(value: anime) {
-                            ZStack(alignment: .bottomLeading) {
-                                PosterImage(url: URL(string: anime.banner ?? anime.cover ?? ""), cornerRadius: 28)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 318)
-                                    .overlay {
-                                        Rectangle()
-                                            .fill(.black.opacity(0.24))
-                                    }
-                                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-
-                                VStack(alignment: .leading, spacing: 12) {
-                                    HStack(spacing: 8) {
-                                        Label(String(format: "%.1f", anime.score ?? 8.7), systemImage: "star.fill")
-                                        Text(anime.year.map(String.init) ?? "Now")
-                                    }
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(.white.opacity(0.86))
-
-                                    Text(anime.title)
-                                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                                        .minimumScaleFactor(0.78)
-                                        .foregroundStyle(.white)
-                                        .lineLimit(3)
-
-                                    SystemPlayLabel()
-                                        .frame(maxWidth: 140)
-                                }
-                                .padding(18)
-                            }
-                            .padding(.horizontal, 16)
+                            HeroCard(anime: anime)
                         }
                         .buttonStyle(.plain)
                         .tag(index)
@@ -176,20 +177,63 @@ struct HomeView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .automatic))
-                .frame(height: 338)
+                .frame(height: 350)
                 .clipped()
             }
         }
-        .frame(height: 338)
-        .offset(y: appeared ? 0 : 24)
-        .opacity(appeared ? 1 : 0)
     }
 
-    private func load(force: Bool) async {
-        if !force, applyCachedCatalogs() {
-            loading = false
-            return
+    // MARK: - Continue Watching
+
+    private var continueWatchingRail: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader(title: "Continue Watching")
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(continueItems) { item in
+                        NavigationLink {
+                            PlayerView(anime: item.anime, episode: item.episode)
+                        } label: {
+                            ContinueCard(item: item)
+                        }
+                        .buttonStyle(PressScaleStyle())
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
         }
+    }
+
+    // MARK: - Watchlist Rail
+
+    private var watchlistRail: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader(title: "My Watchlist")
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(Array(appState.lensWatchlist.prefix(8))) { item in
+                        VStack(alignment: .leading, spacing: 8) {
+                            PosterImage(url: URL(string: item.artwork ?? ""), cornerRadius: 18)
+                                .frame(width: 120, height: 174)
+                            Text(item.title)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .lineLimit(2)
+                                .frame(width: 120, alignment: .leading)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+        }
+    }
+
+    // MARK: - Load
+
+    private func load(force: Bool) async {
+        if !force, applyCachedCatalogs() { loading = false; return }
         loading = true
         let catalogs = await jikan.homeCatalogs()
         if !catalogs.recommended.isEmpty { recommended = catalogs.recommended }
@@ -229,140 +273,98 @@ struct HomeView: View {
     }
 }
 
-struct LensFingerprintStrip: View {
-    @EnvironmentObject private var appState: AppState
+// MARK: - Hero Card
+
+private struct HeroCard: View {
+    let anime: Anime
 
     var body: some View {
-        LiquidGlass(cornerRadius: 24) {
-            HStack(spacing: 14) {
-                RadarChart(values: appState.tasteFingerprint.axes)
-                    .frame(width: 82, height: 82)
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Your fingerprint is warming up")
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(.white)
-                    Text("Every log nudges Lens away from generic lists and closer to you.")
-                        .font(.caption)
-                        .foregroundStyle(Theme.secondary)
+        ZStack(alignment: .bottomLeading) {
+            PosterImage(url: URL(string: anime.banner ?? anime.cover ?? ""), cornerRadius: 28)
+                .frame(maxWidth: .infinity)
+                .frame(height: 330)
+
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: .black.opacity(0.20), location: 0.45),
+                    .init(color: .black.opacity(0.72), location: 1.0)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    if let score = anime.score {
+                        MetaBadge(systemImage: "star.fill", text: String(format: "%.1f", score), color: .yellow)
+                    }
+                    MetaBadge(systemImage: "calendar", text: anime.year.map(String.init) ?? "Now")
                 }
-                Spacer()
-            }
-            .padding(14)
-        }
-    }
-}
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.black.opacity(0.30), in: Capsule())
 
-struct LensWatchlistRail: View {
-    let items: [MediaItem]
-
-    var body: some View {
-        if !items.isEmpty {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("Current Watchlist")
-                    .font(.headline.weight(.semibold))
+                Text(anime.title)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .minimumScaleFactor(0.76)
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 18)
+                    .lineLimit(2)
+                    .shadow(color: .black.opacity(0.6), radius: 4, y: 2)
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 14) {
-                        ForEach(items) { item in
-                            VStack(alignment: .leading, spacing: 10) {
-                                PosterImage(url: URL(string: item.artwork ?? ""), cornerRadius: 18)
-                                    .frame(width: 132, height: 190)
-                                Label(item.kind.title, systemImage: item.kind.symbol)
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(Theme.tertiary)
-                                Text(item.title)
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .lineLimit(2)
-                                    .frame(width: 132, alignment: .leading)
-                            }
-                            .transition(.opacity.combined(with: .scale(scale: 0.96)))
-                        }
-                    }
-                    .padding(.horizontal, 18)
+                HStack(spacing: 8) {
+                    Image(systemName: "play.fill")
+                        .font(.caption.weight(.bold))
+                    Text("Watch Now")
+                        .font(.callout.weight(.bold))
                 }
-            }
-        }
-    }
-}
-
-struct LensFriendActivityPlaceholder: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Friends")
-                .font(.headline.weight(.semibold))
                 .foregroundStyle(.white)
-                .padding(.horizontal, 18)
-
-            LiquidGlass(cornerRadius: 24) {
-                HStack(spacing: 13) {
-                    Image(systemName: "person.2.fill")
-                        .foregroundStyle(Theme.appleBlue)
-                        .frame(width: 42, height: 42)
-                        .background(Color.white.opacity(0.08), in: Circle())
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Taste Twins are coming later")
-                            .font(.headline.weight(.bold))
-                            .foregroundStyle(.white)
-                        Text("For now, Lens keeps your taste private and local.")
-                            .font(.caption)
-                            .foregroundStyle(Theme.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(16)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 9)
+                .background(Theme.appleBlue, in: Capsule())
             }
-            .padding(.horizontal, 18)
+            .padding(20)
         }
+        .padding(.horizontal, 20)
     }
 }
 
-struct ContinueWatchingRail: View {
-    let items: [WatchProgress]
+// MARK: - Continue Card
+
+private struct ContinueCard: View {
+    let item: WatchProgress
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Continue Watching")
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 18)
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack(alignment: .bottom) {
+                PosterImage(url: URL(string: item.image ?? ""), cornerRadius: 16)
+                    .frame(width: 200, height: 114)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
-                    ForEach(items) { item in
-                        NavigationLink {
-                            PlayerView(anime: item.anime, episode: item.episode)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 9) {
-                                PosterImage(url: URL(string: item.image ?? ""), cornerRadius: 18)
-                                    .frame(width: 198, height: 112)
-                                    .overlay(alignment: .bottom) {
-                                        ProgressView(value: item.progress)
-                                            .tint(Theme.appleBlue)
-                                            .padding(.horizontal, 12)
-                                            .padding(.bottom, 9)
-                                    }
-                                Text(item.animeTitle)
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .lineLimit(1)
-                                    .frame(width: 198, alignment: .leading)
-                                Text("Episode \(Int(item.episodeNumber))")
-                                    .font(.caption)
-                                    .foregroundStyle(Theme.tertiary)
-                                    .frame(width: 198, alignment: .leading)
-                            }
-                        }
-                        .buttonStyle(PressScaleStyle())
-                    }
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [.clear, .black.opacity(0.60)], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 40)
+                    ProgressView(value: item.progress)
+                        .tint(Theme.appleBlue)
+                        .frame(width: 200)
+                        .padding(.bottom, 4)
                 }
-                .padding(.horizontal, 18)
             }
+
+            Text(item.animeTitle)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .frame(width: 200, alignment: .leading)
+
+            Text("Episode \(Int(item.episodeNumber))")
+                .font(.caption)
+                .foregroundStyle(Theme.tertiary)
         }
     }
 }
+
+// MARK: - Anime Rail
 
 struct AnimeRail: View {
     let title: String
@@ -371,34 +373,23 @@ struct AnimeRail: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text(title)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(.white)
-                Spacer()
-                NavigationLink(value: AnimeSectionRoute(title: title, items: items)) {
-                    Text("See All")
-                        .font(.footnote.weight(.semibold))
-                }
-                .disabled(items.isEmpty)
-            }
-            .padding(.horizontal, 18)
+            SectionHeader(title: title)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(items) { anime in
                         NavigationLink(value: anime) {
-                            AnimePosterCard(anime: anime, width: compact ? 198 : 132, height: compact ? 112 : 196)
+                            AnimePosterCard(anime: anime, width: compact ? 200 : 130, height: compact ? 114 : 192)
                         }
                         .buttonStyle(PressScaleStyle())
                         .scrollTransition(.interactive, axis: .horizontal) { content, phase in
                             content
-                                .scaleEffect(phase.isIdentity ? 1 : 0.92)
-                                .opacity(phase.isIdentity ? 1 : 0.72)
+                                .scaleEffect(phase.isIdentity ? 1 : 0.93)
+                                .opacity(phase.isIdentity ? 1 : 0.70)
                         }
                     }
                 }
-                .padding(.horizontal, 18)
+                .padding(.horizontal, 20)
             }
         }
     }
@@ -413,16 +404,14 @@ struct AnimeSectionView: View {
     let title: String
     let items: [Anime]
 
-    private let columns = [
-        GridItem(.adaptive(minimum: 130), spacing: 16)
-    ]
+    private let columns = [GridItem(.adaptive(minimum: 130), spacing: 14)]
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: 20) {
+            LazyVGrid(columns: columns, spacing: 18) {
                 ForEach(items) { anime in
                     NavigationLink(value: anime) {
-                        AnimePosterCard(anime: anime, width: 132, height: 196)
+                        AnimePosterCard(anime: anime, width: 130, height: 192)
                     }
                     .buttonStyle(PressScaleStyle())
                 }
@@ -432,6 +421,7 @@ struct AnimeSectionView: View {
         }
         .background(PremiumBackdrop())
         .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.large)
     }
 }
 
@@ -441,20 +431,24 @@ struct AnimePosterCard: View {
     let height: CGFloat
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            PosterImage(url: URL(string: anime.cover ?? anime.banner ?? ""), cornerRadius: 20)
-                .frame(width: width, height: height)
-                .overlay(alignment: .bottomLeading) {
-                    Rectangle()
-                        .fill(.black.opacity(0.18))
-                    Text(anime.subtitle ?? anime.sourceId ?? "")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.white.opacity(0.75))
-                        .padding(12)
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack(alignment: .bottomLeading) {
+                PosterImage(url: URL(string: anime.cover ?? anime.banner ?? ""), cornerRadius: 18)
+                    .frame(width: width, height: height)
+
+                if let subtitle = anime.subtitle ?? anime.sourceId {
+                    Text(subtitle)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white.opacity(0.82))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(.black.opacity(0.48), in: Capsule())
+                        .padding(8)
                 }
+            }
 
             Text(anime.title)
-                .font(.footnote.weight(.semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.white)
                 .lineLimit(2)
                 .frame(width: width, alignment: .leading)
@@ -463,42 +457,40 @@ struct AnimePosterCard: View {
 }
 
 struct CinematicBackground: View {
+    var body: some View { PremiumBackdrop() }
+}
+
+struct LensFingerprintStrip: View {
+    @EnvironmentObject private var appState: AppState
+
     var body: some View {
-        ZStack {
-            PremiumBackdrop()
+        LiquidGlass(cornerRadius: 22) {
+            HStack(spacing: 14) {
+                RadarChart(values: appState.tasteFingerprint.axes)
+                    .frame(width: 72, height: 72)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Your taste fingerprint")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.white)
+                    Text("Every log nudges Lens closer to you.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondary)
+                }
+                Spacer()
+            }
+            .padding(14)
         }
     }
 }
 
 private extension WatchProgress {
     var anime: Anime {
-        Anime(
-            id: animeId,
-            sourceId: sourceId,
-            malId: nil,
-            anidbId: nil,
-            title: animeTitle,
-            subtitle: sourceId,
-            cover: image,
-            banner: image,
-            year: nil,
-            score: nil,
-            genres: [],
-            status: nil,
-            progress: nil,
-            synopsis: nil
-        )
+        Anime(id: animeId, sourceId: sourceId, malId: nil, anidbId: nil,
+              title: animeTitle, subtitle: sourceId, cover: image, banner: image,
+              year: nil, score: nil, genres: [], status: nil, progress: nil, synopsis: nil)
     }
-
     var episode: Episode {
-        Episode(
-            id: episodeId,
-            animeId: animeId,
-            sourceId: sourceId,
-            number: episodeNumber,
-            title: episodeTitle,
-            duration: nil,
-            streamUrl: nil
-        )
+        Episode(id: episodeId, animeId: animeId, sourceId: sourceId,
+                number: episodeNumber, title: episodeTitle, duration: nil, streamUrl: nil)
     }
 }

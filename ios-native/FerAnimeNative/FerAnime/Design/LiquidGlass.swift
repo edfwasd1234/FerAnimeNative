@@ -1,47 +1,73 @@
 import SwiftUI
 import UIKit
 
+// MARK: - Haptics
+
 enum Haptics {
     static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .soft) {
-        let generator = UIImpactFeedbackGenerator(style: style)
-        generator.prepare()
-        generator.impactOccurred()
+        let g = UIImpactFeedbackGenerator(style: style)
+        g.prepare()
+        g.impactOccurred()
     }
+    static func selection() { UISelectionFeedbackGenerator().selectionChanged() }
 }
+
+// MARK: - Core Glass Container
+// On iOS 26+, TabView and NavigationStack automatically receive Liquid Glass treatment.
+// Custom surfaces use .regularMaterial which iOS 26 also renders as Liquid Glass.
 
 struct LiquidGlass<Content: View>: View {
     var cornerRadius: CGFloat = 22
-    var glow: Color = Theme.appleBlue.opacity(0.12)
+    var glow: Color = Theme.appleBlue.opacity(0.08)
+    var material: Material = .regularMaterial
     @ViewBuilder var content: Content
 
     var body: some View {
         content
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .background(material, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.white.opacity(0.035))
+                    .fill(
+                        LinearGradient(
+                            colors: [.white.opacity(0.10), .white.opacity(0.02)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .allowsHitTesting(false)
             }
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
+                    .stroke(
+                        LinearGradient(
+                            colors: [.white.opacity(0.22), .white.opacity(0.06)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.75
+                    )
+                    .allowsHitTesting(false)
             }
-            .shadow(color: glow, radius: 18, x: 0, y: 10)
-            .shadow(color: Color.black.opacity(0.28), radius: 18, x: 0, y: 12)
+            .shadow(color: glow, radius: 22, x: 0, y: 6)
+            .shadow(color: .black.opacity(0.22), radius: 18, x: 0, y: 8)
     }
 }
+
+// MARK: - Button Styles
 
 struct PressScaleStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.955 : 1)
-            .brightness(configuration.isPressed ? 0.08 : 0)
-            .animation(.spring(response: 0.28, dampingFraction: 0.68), value: configuration.isPressed)
+            .opacity(configuration.isPressed ? 0.88 : 1)
+            .animation(.spring(response: 0.24, dampingFraction: 0.72), value: configuration.isPressed)
             .onChange(of: configuration.isPressed) { _, isPressed in
-                if isPressed { Haptics.impact() }
+                if isPressed { Haptics.impact(.soft) }
             }
     }
 }
+
+// MARK: - Appear Animation
 
 struct GlassAppear: ViewModifier {
     let delay: Double
@@ -50,11 +76,11 @@ struct GlassAppear: ViewModifier {
     func body(content: Content) -> some View {
         content
             .opacity(visible ? 1 : 0)
-            .blur(radius: visible ? 0 : 10)
-            .offset(y: visible ? 0 : 16)
-            .scaleEffect(visible ? 1 : 0.985)
+            .blur(radius: visible ? 0 : 6)
+            .offset(y: visible ? 0 : 12)
+            .scaleEffect(visible ? 1 : 0.98)
             .onAppear {
-                withAnimation(.spring(response: 0.56, dampingFraction: 0.86).delay(delay)) {
+                withAnimation(.spring(response: 0.52, dampingFraction: 0.88).delay(delay)) {
                     visible = true
                 }
             }
@@ -67,46 +93,92 @@ extension View {
     }
 }
 
-struct LiquidButton: View {
-    var title: String
-    var systemImage: String
-    var action: () -> Void
+// MARK: - Shimmer
 
-    var body: some View {
-        Button(action: action) {
-            LiquidGlass(cornerRadius: 20, glow: Theme.appleBlue.opacity(0.12)) {
-                HStack(spacing: 10) {
-                    Image(systemName: systemImage)
-                        .font(.headline)
-                    Text(title)
-                        .font(.headline.weight(.bold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 15)
+private struct ShimmerModifier: ViewModifier {
+    @State private var phase: CGFloat = -1
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            GeometryReader { geo in
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .white.opacity(0.10), location: 0.35),
+                        .init(color: .white.opacity(0.16), location: 0.5),
+                        .init(color: .white.opacity(0.10), location: 0.65),
+                        .init(color: .clear, location: 1)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(width: geo.size.width * 2.5)
+                .offset(x: geo.size.width * (phase + 1))
+            }
+            .allowsHitTesting(false)
+            .clipped()
+        }
+        .onAppear {
+            withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                phase = 1
             }
         }
-        .buttonStyle(PressScaleStyle())
     }
 }
 
-struct SystemPlayLabel: View {
-    var title = "Play"
+extension View {
+    func shimmer() -> some View { modifier(ShimmerModifier()) }
+}
+
+// MARK: - Poster Image
+
+struct PosterImage: View {
+    var url: URL?
+    var cornerRadius: CGFloat = 22
 
     var body: some View {
-        Label(title, systemImage: "play.fill")
-            .font(.callout.weight(.semibold))
-            .frame(maxWidth: .infinity)
+        GeometryReader { proxy in
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                case .failure:
+                    placeholder(proxy.size)
+                default:
+                    placeholder(proxy.size)
+                        .shimmer()
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func placeholder(_ size: CGSize) -> some View {
+        ZStack {
+            Color.white.opacity(0.07)
+            Image(systemName: "photo")
+                .font(.system(size: min(size.width, size.height) * 0.22))
+                .foregroundStyle(.white.opacity(0.28))
+        }
+        .frame(width: size.width, height: size.height)
     }
 }
 
+// MARK: - Section Headers
+
+/// Large page-level header with eyebrow subtitle.
 struct FrostedHeader: View {
     var title: String
     var subtitle: String
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .bottom) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(subtitle.uppercased())
                     .font(.caption2.weight(.black))
                     .foregroundStyle(Theme.appleBlue)
@@ -116,7 +188,7 @@ struct FrostedHeader: View {
                     .foregroundStyle(.white)
             }
             Spacer()
-            LiquidGlass(cornerRadius: 18, glow: Theme.appleBlue.opacity(0.12)) {
+            LiquidGlass(cornerRadius: 18, glow: Theme.appleBlue.opacity(0.10)) {
                 Image(systemName: "sparkles.tv.fill")
                     .font(.headline.weight(.semibold))
                     .foregroundStyle(Theme.appleBlue)
@@ -128,41 +200,164 @@ struct FrostedHeader: View {
     }
 }
 
-struct PremiumBackdrop: View {
+/// Compact rail/section header with optional "See All" link.
+struct SectionHeader: View {
+    let title: String
+    var seeAllAction: (() -> Void)? = nil
+
     var body: some View {
-        ZStack {
-            Theme.background
-            Color.white.opacity(0.018)
+        HStack(alignment: .center) {
+            Text(title)
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+            Spacer()
+            if let action = seeAllAction {
+                Button(action: action) {
+                    HStack(spacing: 3) {
+                        Text("See All")
+                            .font(.footnote.weight(.semibold))
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.bold))
+                    }
+                    .foregroundStyle(Theme.appleBlue)
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .ignoresSafeArea()
+        .padding(.horizontal, 20)
     }
 }
 
-struct PosterImage: View {
-    var url: URL?
-    var cornerRadius: CGFloat = 24
+// MARK: - Backdrop
+
+struct PremiumBackdrop: View {
+    var body: some View {
+        Theme.background.ignoresSafeArea()
+    }
+}
+
+// MARK: - Play Labels & Buttons
+
+struct SystemPlayLabel: View {
+    var title = "Play"
 
     var body: some View {
-        GeometryReader { proxy in
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                default:
-                    ZStack {
-                        Color.secondary.opacity(0.18)
-                        Image(systemName: "play.rectangle.fill")
-                            .font(.largeTitle)
-                            .foregroundStyle(.white.opacity(0.50))
-                    }
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                }
+        Label(title, systemImage: "play.fill")
+            .font(.callout.weight(.semibold))
+            .frame(maxWidth: .infinity)
+    }
+}
+
+struct LiquidButton: View {
+    var title: String
+    var systemImage: String
+    var color: Color = Theme.appleBlue
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: systemImage)
+                    .font(.headline)
+                Text(title)
+                    .font(.headline.weight(.bold))
             }
-            .clipped()
+            .foregroundStyle(.white)
+            .padding(.horizontal, 22)
+            .padding(.vertical, 14)
+            .background(color.opacity(0.20), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(color.opacity(0.38), lineWidth: 0.8)
+            }
         }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .buttonStyle(PressScaleStyle())
+    }
+}
+
+// MARK: - Chips & Badges
+
+struct GlassChip: View {
+    let text: String
+    var systemImage: String? = nil
+    var isSelected: Bool = false
+    var color: Color = Theme.appleBlue
+    var action: (() -> Void)? = nil
+
+    var body: some View {
+        Group {
+            if let action {
+                Button(action: action) { chipContent }.buttonStyle(PressScaleStyle())
+            } else {
+                chipContent
+            }
+        }
+    }
+
+    private var chipContent: some View {
+        HStack(spacing: 5) {
+            if let icon = systemImage {
+                Image(systemName: icon)
+                    .font(.caption.weight(.semibold))
+            }
+            Text(text)
+                .font(.caption.weight(.semibold))
+        }
+        .foregroundStyle(isSelected ? .white : Theme.secondary)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(
+            isSelected ? color.opacity(0.22) : Color.white.opacity(0.07),
+            in: Capsule()
+        )
+        .overlay(
+            Capsule().stroke(
+                isSelected ? color.opacity(0.42) : Color.white.opacity(0.10),
+                lineWidth: 0.75
+            )
+        )
+    }
+}
+
+struct MetaBadge: View {
+    let systemImage: String
+    let text: String
+    var color: Color = .white.opacity(0.76)
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.caption2.weight(.bold))
+            Text(text)
+                .font(.caption.weight(.semibold))
+        }
+        .foregroundStyle(color)
+    }
+}
+
+// MARK: - Stat Card
+
+struct LensMetric: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Theme.tertiary)
+            Text(value)
+                .font(.headline.weight(.black))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 0.75)
+        )
     }
 }
