@@ -64,9 +64,17 @@ struct AnimeDetailView: View {
 
     private var heroSection: some View {
         ZStack(alignment: .bottom) {
-            PosterImage(url: URL(string: display.banner ?? display.cover ?? ""), cornerRadius: 0)
-                .frame(maxWidth: .infinity)
-                .frame(height: 400)
+            AsyncImage(url: URL(string: display.banner ?? display.cover ?? "")) { phase in
+                switch phase {
+                case .success(let img):
+                    img.resizable().scaledToFill()
+                default:
+                    Color.white.opacity(0.08)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 400)
+            .clipped()
 
             LinearGradient(
                 stops: [
@@ -78,7 +86,8 @@ struct AnimeDetailView: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity)
+            .frame(height: 400)
 
             VStack(alignment: .leading, spacing: 14) {
                 Text(display.title)
@@ -147,6 +156,9 @@ struct AnimeDetailView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 22)
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: 400)
+        .clipped()
     }
 
     // MARK: - Content
