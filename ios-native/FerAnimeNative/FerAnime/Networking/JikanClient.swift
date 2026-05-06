@@ -17,6 +17,22 @@ final class JikanClient {
         )
     }
 
+    func seasonal(year: Int, season: String) async -> [Anime] {
+        let query = [
+            URLQueryItem(name: "sfw", value: "true"),
+            URLQueryItem(name: "limit", value: "24")
+        ]
+        return (try? await request(path: "/seasons/\(year)/\(season.lowercased())", query: query)) ?? []
+    }
+
+    func nowSeason() async -> [Anime] {
+        let query = [
+            URLQueryItem(name: "sfw", value: "true"),
+            URLQueryItem(name: "limit", value: "24")
+        ]
+        return (try? await request(path: "/seasons/now", query: query)) ?? []
+    }
+
     private func top(filter: String? = nil, genres: String? = nil, title: String) async -> [Anime] {
         var query: [URLQueryItem] = [
             URLQueryItem(name: "type", value: "tv"),

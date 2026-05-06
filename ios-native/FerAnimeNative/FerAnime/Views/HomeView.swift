@@ -98,12 +98,21 @@ struct HomeView: View {
                         .foregroundStyle(.white)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink { SearchView() } label: {
-                        Image(systemName: "magnifyingglass")
-                            .font(.headline)
-                            .foregroundStyle(Theme.appleBlue)
-                            .frame(width: 36, height: 36)
-                            .background(Theme.panel, in: Circle())
+                    HStack(spacing: 10) {
+                        NavigationLink { SeasonalCalendarView() } label: {
+                            Image(systemName: "calendar")
+                                .font(.headline)
+                                .foregroundStyle(Theme.appleBlue)
+                                .frame(width: 36, height: 36)
+                                .background(Theme.panel, in: Circle())
+                        }
+                        NavigationLink { SearchView() } label: {
+                            Image(systemName: "magnifyingglass")
+                                .font(.headline)
+                                .foregroundStyle(Theme.appleBlue)
+                                .frame(width: 36, height: 36)
+                                .background(Theme.panel, in: Circle())
+                        }
                     }
                 }
             }

@@ -104,3 +104,15 @@ struct MangaPage: Codable, Identifiable, Hashable {
     let title: String?
     let image: String
 }
+
+struct MangaReadingProgress: Codable, Identifiable {
+    var id: String { mangaId }
+    let mangaId: String
+    let mangaTitle: String
+    let image: String?
+    var chapterId: String
+    var chapterName: String
+    var pageIndex: Int
+    var totalPages: Int
+    var updatedAt: Date
+}

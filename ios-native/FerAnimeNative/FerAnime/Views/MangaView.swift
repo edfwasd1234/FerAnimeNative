@@ -12,6 +12,13 @@ struct MangaView: View {
 
     private var client: MangaKatanaClient { MangaKatanaClient(resolverBaseURL: appState.client.baseURL) }
 
+    private var continueItems: [MangaReadingProgress] {
+        appState.mangaProgress.values
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .prefix(8)
+            .map { $0 }
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -22,6 +29,9 @@ struct MangaView: View {
                         if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             mangaGrid(title: "Search Results", items: results)
                         } else {
+                            if !continueItems.isEmpty {
+                                continueReadingRail
+                            }
                             mangaRail(title: "Popular Manga", items: popular)
                             mangaRail(title: "Newest Chapters", items: newest)
                             mangaGrid(title: "Action Picks", items: action)
@@ -54,6 +64,54 @@ struct MangaView: View {
                 await loadHome()
             }
             .onChange(of: query) { _, _ in search() }
+        }
+    }
+
+    private var continueReadingRail: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionTitle("Continue Reading")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(continueItems) { prog in
+                        let item = MangaItem(
+                            id: prog.mangaId,
+                            image: prog.image,
+                            title: prog.mangaTitle,
+                            chapter: prog.chapterName,
+                            view: nil,
+                            description: nil
+                        )
+                        NavigationLink(value: item) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ZStack(alignment: .bottomLeading) {
+                                    PosterImage(url: URL(string: prog.image ?? ""), cornerRadius: 16)
+                                        .frame(width: 120, height: 174)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(prog.chapterName)
+                                            .font(.caption2.weight(.bold))
+                                            .foregroundStyle(.white)
+                                            .lineLimit(1)
+                                        if prog.totalPages > 0 {
+                                            ProgressView(value: Double(prog.pageIndex) / Double(prog.totalPages))
+                                                .tint(Theme.appleBlue)
+                                                .frame(width: 104)
+                                        }
+                                    }
+                                    .padding(8)
+                                    .background(.black.opacity(0.55))
+                                }
+                                Text(prog.mangaTitle)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(2)
+                                    .frame(width: 120, alignment: .leading)
+                            }
+                        }
+                        .buttonStyle(PressScaleStyle())
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
         }
     }
 
@@ -293,21 +351,46 @@ struct MangaDetailView: View {
     }
 
     private func chapterList(_ chapters: [MangaChapter]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Chapters")
-                .font(.title3.weight(.bold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 20)
+        let prog = appState.mangaProgress[item.detailId]
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Chapters")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.white)
+                Spacer()
+                if let prog, let resumeChapter = chapters.first(where: { $0.id == prog.chapterId }) {
+                    NavigationLink {
+                        MangaReaderView(
+                            mangaId: item.detailId,
+                            chapter: resumeChapter,
+                            mangaTitle: detail?.name ?? item.title,
+                            mangaImage: detail?.imageUrl ?? item.image
+                        )
+                    } label: {
+                        Label("Continue", systemImage: "arrow.right.circle.fill")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Theme.appleBlue)
+                    }
+                    .buttonStyle(PressScaleStyle())
+                }
+            }
+            .padding(.horizontal, 20)
 
             LazyVStack(spacing: 10) {
                 ForEach(chapters) { chapter in
+                    let isReading = prog?.chapterId == chapter.id
                     NavigationLink {
-                        MangaReaderView(mangaId: item.detailId, chapter: chapter)
+                        MangaReaderView(
+                            mangaId: item.detailId,
+                            chapter: chapter,
+                            mangaTitle: detail?.name ?? item.title,
+                            mangaImage: detail?.imageUrl ?? item.image
+                        )
                     } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: "book.pages.fill")
+                            Image(systemName: isReading ? "bookmark.fill" : "book.pages.fill")
                                 .font(.headline)
-                                .foregroundStyle(Theme.appleBlue)
+                                .foregroundStyle(isReading ? .yellow : Theme.appleBlue)
                                 .frame(width: 34, height: 34)
                                 .background(.regularMaterial, in: Circle())
                             VStack(alignment: .leading, spacing: 4) {
@@ -315,9 +398,15 @@ struct MangaDetailView: View {
                                     .font(.callout.weight(.semibold))
                                     .foregroundStyle(.white)
                                     .lineLimit(2)
-                                Text(chapter.createdAt ?? chapter.view ?? "Chapter")
-                                    .font(.caption)
-                                    .foregroundStyle(Theme.tertiary)
+                                if isReading, let p = prog {
+                                    Text("Page \(p.pageIndex + 1) of \(p.totalPages)")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.appleBlue)
+                                } else {
+                                    Text(chapter.createdAt ?? chapter.view ?? "Chapter")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.tertiary)
+                                }
                             }
                             Spacer()
                             Image(systemName: "chevron.right")
@@ -357,49 +446,78 @@ struct MangaReaderView: View {
     @EnvironmentObject private var appState: AppState
     let mangaId: String
     let chapter: MangaChapter
+    let mangaTitle: String
+    let mangaImage: String?
     @State private var detail: MangaChapterDetail?
     @State private var loading = true
     @State private var errorMessage: String?
+    @State private var currentPage = 0
 
     private var client: MangaKatanaClient { MangaKatanaClient(resolverBaseURL: appState.client.baseURL) }
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            ScrollView {
-                LazyVStack(spacing: 10) {
-                    if let detail {
-                        ForEach(detail.images) { page in
-                            AsyncImage(url: URL(string: page.image)) { phase in
-                                switch phase {
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .scaledToFit()
-                                default:
-                                    Rectangle()
-                                        .fill(Color.white.opacity(0.08))
-                                        .frame(height: 420)
-                                        .overlay {
-                                            ProgressView()
-                                                .tint(.white)
-                                        }
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 10) {
+                        if let detail {
+                            ForEach(Array(detail.images.enumerated()), id: \.element.id) { index, page in
+                                AsyncImage(url: URL(string: page.image)) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .scaledToFit()
+                                    default:
+                                        Rectangle()
+                                            .fill(Color.white.opacity(0.08))
+                                            .frame(height: 420)
+                                            .overlay {
+                                                ProgressView().tint(.white)
+                                            }
+                                    }
+                                }
+                                .id(index)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                .padding(.horizontal, 8)
+                                .onAppear {
+                                    if index > currentPage {
+                                        currentPage = index
+                                        appState.updateMangaProgress(
+                                            mangaId: mangaId,
+                                            mangaTitle: mangaTitle,
+                                            image: mangaImage,
+                                            chapter: chapter,
+                                            pageIndex: index,
+                                            totalPages: detail.images.count
+                                        )
+                                    }
                                 }
                             }
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .padding(.horizontal, 8)
+                        } else if loading {
+                            ProgressView()
+                                .tint(.white)
+                                .padding(.top, 120)
+                        } else if let errorMessage {
+                            ContentUnavailableView("Chapter Unavailable", systemImage: "doc.richtext", description: Text(errorMessage))
+                                .foregroundStyle(.white)
+                                .padding(.top, 80)
                         }
-                    } else if loading {
-                        ProgressView()
-                            .tint(.white)
-                            .padding(.top, 120)
-                    } else if let errorMessage {
-                        ContentUnavailableView("Chapter Unavailable", systemImage: "doc.richtext", description: Text(errorMessage))
-                            .foregroundStyle(.white)
-                            .padding(.top, 80)
+                    }
+                    .padding(.vertical, 12)
+                }
+                .onChange(of: detail) { _, newDetail in
+                    guard let newDetail,
+                          let saved = appState.mangaProgress[mangaId],
+                          saved.chapterId == chapter.id,
+                          saved.pageIndex > 0,
+                          newDetail.images.indices.contains(saved.pageIndex) else { return }
+                    currentPage = saved.pageIndex
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        withAnimation { proxy.scrollTo(saved.pageIndex, anchor: .top) }
                     }
                 }
-                .padding(.vertical, 12)
             }
         }
         .navigationTitle(detail?.currentChapter ?? chapter.name)

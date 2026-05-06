@@ -9,6 +9,7 @@ struct AnimeDetailView: View {
     @State private var resolvedAnime: Anime?
     @State private var sourceMatches: [Anime] = []
     @State private var isMatchingSources = false
+    @State private var preferredLanguage = "sub"
 
     private var display: Anime { details ?? anime }
     private var playbackAnime: Anime { resolvedAnime ?? display }
@@ -239,14 +240,42 @@ struct AnimeDetailView: View {
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                 Spacer()
+                // Sub/Dub toggle
+                HStack(spacing: 0) {
+                    ForEach(["sub", "dub"], id: \.self) { lang in
+                        Button {
+                            preferredLanguage = lang
+                            appState.setShowLanguagePreference(lang, for: anime.id)
+                            Haptics.selection()
+                        } label: {
+                            Text(lang.uppercased())
+                                .font(.caption2.weight(.bold))
+                                .tracking(0.6)
+                                .foregroundStyle(preferredLanguage == lang ? .white : Theme.secondary)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    preferredLanguage == lang ? Theme.appleBlue.opacity(0.30) : Color.clear,
+                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                )
+                        }
+                        .buttonStyle(PressScaleStyle())
+                    }
+                }
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.white.opacity(0.10), lineWidth: 0.75)
+                )
                 Button {
                     appState.queueDownload(anime: playbackAnime, episode: nil)
                 } label: {
-                    Label("All", systemImage: "arrow.down.circle")
-                        .font(.caption.weight(.semibold))
+                    Image(systemName: "arrow.down.circle")
+                        .font(.headline)
                         .foregroundStyle(Theme.appleBlue)
                 }
                 .disabled(episodes.isEmpty)
+                .padding(.leading, 8)
             }
             .padding(.horizontal, 20)
 
@@ -281,6 +310,9 @@ struct AnimeDetailView: View {
     // MARK: - Load
 
     private func load() async {
+        if let saved = appState.showLanguagePreferences[anime.id] {
+            preferredLanguage = saved
+        }
         if let sid = anime.sourceId, sid != "jikan" {
             let detailKey = appState.cacheKey(sid, anime.id, "details")
             let episodesKey = appState.cacheKey(sid, anime.id, "episodes")

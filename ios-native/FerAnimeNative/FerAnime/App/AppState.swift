@@ -34,8 +34,10 @@ final class AppState: ObservableObject {
     @Published var cachedMangaDetails: [String: MangaDetail] = [:] {
         didSet { save(cachedMangaDetails, key: "cachedMangaDetails") }
     }
-    @Published var cachedMangaChapters: [String: MangaChapterDetail] = [:] {
-        didSet { save(cachedMangaChapters, key: "cachedMangaChapters") }
+    // Chapter page data is in-memory only — it can be large and is fast to re-fetch
+    @Published var cachedMangaChapters: [String: MangaChapterDetail] = [:]
+    @Published var mangaProgress: [String: MangaReadingProgress] = [:] {
+        didSet { save(mangaProgress, key: "mangaProgress") }
     }
     @Published var cachedMangaSearches: [String: [MangaItem]] = [:] {
         didSet { save(cachedMangaSearches, key: "cachedMangaSearches") }
@@ -76,8 +78,9 @@ final class AppState: ObservableObject {
         cachedEpisodes = Self.loadValue(key: "cachedEpisodes") ?? [:]
         cachedSourceMatches = Self.loadValue(key: "cachedSourceMatches") ?? [:]
         cachedMangaDetails = Self.loadValue(key: "cachedMangaDetails") ?? [:]
-        cachedMangaChapters = Self.loadValue(key: "cachedMangaChapters") ?? [:]
+        cachedMangaChapters = [:]
         cachedMangaSearches = Self.loadValue(key: "cachedMangaSearches") ?? [:]
+        mangaProgress = Self.loadValue(key: "mangaProgress") ?? [:]
         tasteFingerprint = Self.loadValue(key: "tasteFingerprint") ?? .neutral
         watchLogs = Self.loadArray(key: "watchLogs")
         lensWatchlist = Self.loadArray(key: "lensWatchlist")
@@ -196,6 +199,23 @@ final class AppState: ObservableObject {
             reason: pickReason(for: selected, request: request),
             confidence: scored.first(where: { $0.0.id == selected.id })?.1 ?? 0.72
         )
+    }
+
+    func updateMangaProgress(mangaId: String, mangaTitle: String, image: String?, chapter: MangaChapter, pageIndex: Int, totalPages: Int) {
+        mangaProgress[mangaId] = MangaReadingProgress(
+            mangaId: mangaId,
+            mangaTitle: mangaTitle,
+            image: image,
+            chapterId: chapter.id,
+            chapterName: chapter.name,
+            pageIndex: pageIndex,
+            totalPages: totalPages,
+            updatedAt: Date()
+        )
+    }
+
+    func setShowLanguagePreference(_ language: String, for animeId: String) {
+        showLanguagePreferences[animeId] = language
     }
 
     func requestNotifications() {

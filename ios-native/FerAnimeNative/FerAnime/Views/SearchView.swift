@@ -20,40 +20,37 @@ struct SearchView: View {
     ]
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                PremiumBackdrop()
+        ZStack {
+            PremiumBackdrop()
 
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 22) {
-                        sourcePicker
-                            .glassAppear(delay: 0.04)
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 22) {
+                    sourcePicker
+                        .glassAppear(delay: 0.04)
 
-                        if query.trimmingCharacters(in: .whitespaces).isEmpty {
-                            quickSection
-                                .glassAppear(delay: 0.08)
-                        }
-
-                        if searching {
-                            searchingIndicator
-                        } else {
-                            resultsGrid
-                        }
+                    if query.trimmingCharacters(in: .whitespaces).isEmpty {
+                        quickSection
+                            .glassAppear(delay: 0.08)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-                    .padding(.bottom, 100)
+
+                    if searching {
+                        searchingIndicator
+                    } else {
+                        resultsGrid
+                    }
                 }
-                .scrollDismissesKeyboard(.interactively)
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 100)
             }
-            .navigationTitle("Search")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
-            .searchable(text: $query, prompt: "Anime title, series, season…")
-            .onChange(of: query) { _, _ in scheduleSearch() }
-            .onChange(of: sourceId) { _, _ in scheduleSearch() }
-            .navigationDestination(for: Anime.self) { AnimeDetailView(anime: $0) }
+            .scrollDismissesKeyboard(.interactively)
         }
+        .navigationTitle("Search")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+        .searchable(text: $query, prompt: "Anime title, series, season…")
+        .onChange(of: query) { _, _ in scheduleSearch() }
+        .onChange(of: sourceId) { _, _ in scheduleSearch() }
     }
 
     // MARK: - Source Picker
