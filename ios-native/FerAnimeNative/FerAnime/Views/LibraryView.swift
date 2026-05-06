@@ -2,10 +2,61 @@ import SwiftUI
 
 struct LibraryView: View {
     @EnvironmentObject private var appState: AppState
+    @State private var showingLogSheet = false
 
     var body: some View {
         NavigationStack {
             List {
+                Section("Lens Watchlist") {
+                    if appState.lensWatchlist.isEmpty {
+                        ContentUnavailableView("Nothing Saved", systemImage: "plus.rectangle.on.rectangle", description: Text("Save a Lens Pick or tracked title and it will appear here."))
+                    } else {
+                        ForEach(appState.lensWatchlist) { item in
+                            HStack(spacing: 12) {
+                                PosterImage(url: URL(string: item.artwork ?? ""), cornerRadius: 12)
+                                    .frame(width: 52, height: 68)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(item.title)
+                                        .font(.headline)
+                                        .lineLimit(1)
+                                    Label(item.kind.title, systemImage: item.kind.symbol)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+
+                Section("Watch Logs") {
+                    if appState.watchLogs.isEmpty {
+                        ContentUnavailableView("No Deep Logs", systemImage: "star.bubble", description: Text("Lens Pick can quick-log a title, and full logging comes next."))
+                    } else {
+                        ForEach(appState.watchLogs) { log in
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text(log.media.title)
+                                        .font(.headline)
+                                    Spacer()
+                                    Text(String(format: "%.1f", log.rating))
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(Theme.appleBlue)
+                                }
+                                Text([log.mood, log.watchStyle, log.watchedWith].filter { !$0.isEmpty }.joined(separator: " | "))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                if !log.reactions.isEmpty {
+                                    Text(log.reactions.map(\.title).joined(separator: ", "))
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+
                 Section("Continue Watching") {
                     if appState.continueWatching.isEmpty {
                         ContentUnavailableView("No Watch History", systemImage: "play.rectangle", description: Text("Start an episode and it will appear here."))
@@ -59,10 +110,33 @@ struct LibraryView: View {
                         }
                     }
                 }
+
+                Section("Manga And Source Sync") {
+                    NavigationLink {
+                        MangaView()
+                    } label: {
+                        Label("Open manga tracker", systemImage: "books.vertical.fill")
+                    }
+                    Label("Anime-to-source sync placeholders are stored locally for V1.", systemImage: "link")
+                        .foregroundStyle(.secondary)
+                }
             }
             .scrollContentBackground(.hidden)
             .background(PremiumBackdrop())
             .navigationTitle("Library")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingLogSheet = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingLogSheet) {
+                ManualWatchLogView()
+                    .environmentObject(appState)
+            }
         }
     }
 }

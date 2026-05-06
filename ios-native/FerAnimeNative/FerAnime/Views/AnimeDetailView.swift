@@ -77,6 +77,15 @@ struct AnimeDetailView: View {
                         .controlSize(.large)
                         .simultaneousGesture(TapGesture().onEnded { Haptics.impact(.medium) })
                     }
+
+                    Button {
+                        appState.addToLensWatchlist(MediaItem(anime: playbackAnime))
+                        Haptics.impact(.light)
+                    } label: {
+                        Label("Save to Lens", systemImage: "plus")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
                 }
                 .padding(18)
             }

@@ -54,10 +54,13 @@ struct HomeView: View {
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 24) {
+                        lensPrelude
                         hero
                         if !continueItems.isEmpty {
                             ContinueWatchingRail(items: continueItems)
                         }
+                        LensWatchlistRail(items: Array(appState.lensWatchlist.prefix(8)))
+                        LensFriendActivityPlaceholder()
                         if !becauseYouWatched.isEmpty {
                             AnimeRail(title: appState.continueWatching.isEmpty ? "Recommended For You" : "Because You Watched", items: becauseYouWatched)
                         }
@@ -70,7 +73,7 @@ struct HomeView: View {
                 }
                 .refreshable { await load(force: true) }
             }
-            .navigationTitle("Watch")
+            .navigationTitle("Lens")
             .navigationDestination(for: Anime.self) { AnimeDetailView(anime: $0) }
             .navigationDestination(for: AnimeSectionRoute.self) { route in
                 AnimeSectionView(title: route.title, items: route.items)
@@ -87,6 +90,42 @@ struct HomeView: View {
             .task(id: heroItems.count) {
                 await autoAdvanceHero()
             }
+        }
+    }
+
+    private var lensPrelude: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            FrostedHeader(title: "Lens", subtitle: "Personal watch companion")
+
+            NavigationLink {
+                LensPickView()
+            } label: {
+                LiquidGlass(cornerRadius: 30, glow: Theme.appleBlue.opacity(0.18)) {
+                    HStack(spacing: 16) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Find My Watch")
+                                .font(.system(size: 28, weight: .black, design: .rounded))
+                                .foregroundStyle(.white)
+                            Text("One pick tuned to your mood, time, company, and services.")
+                                .font(.callout.weight(.semibold))
+                                .foregroundStyle(Theme.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer()
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundStyle(Theme.appleBlue)
+                            .frame(width: 58, height: 58)
+                            .background(Color.white.opacity(0.08), in: Circle())
+                    }
+                    .padding(18)
+                }
+            }
+            .buttonStyle(PressScaleStyle())
+            .padding(.horizontal, 18)
+
+            LensFingerprintStrip()
+                .padding(.horizontal, 18)
         }
     }
 
@@ -186,6 +225,96 @@ struct HomeView: View {
                     heroIndex = (heroIndex + 1) % heroItems.count
                 }
             }
+        }
+    }
+}
+
+struct LensFingerprintStrip: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        LiquidGlass(cornerRadius: 24) {
+            HStack(spacing: 14) {
+                RadarChart(values: appState.tasteFingerprint.axes)
+                    .frame(width: 82, height: 82)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Your fingerprint is warming up")
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(.white)
+                    Text("Every log nudges Lens away from generic lists and closer to you.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondary)
+                }
+                Spacer()
+            }
+            .padding(14)
+        }
+    }
+}
+
+struct LensWatchlistRail: View {
+    let items: [MediaItem]
+
+    var body: some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Current Watchlist")
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 14) {
+                        ForEach(items) { item in
+                            VStack(alignment: .leading, spacing: 10) {
+                                PosterImage(url: URL(string: item.artwork ?? ""), cornerRadius: 18)
+                                    .frame(width: 132, height: 190)
+                                Label(item.kind.title, systemImage: item.kind.symbol)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(Theme.tertiary)
+                                Text(item.title)
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(2)
+                                    .frame(width: 132, alignment: .leading)
+                            }
+                            .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                        }
+                    }
+                    .padding(.horizontal, 18)
+                }
+            }
+        }
+    }
+}
+
+struct LensFriendActivityPlaceholder: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Friends")
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 18)
+
+            LiquidGlass(cornerRadius: 24) {
+                HStack(spacing: 13) {
+                    Image(systemName: "person.2.fill")
+                        .foregroundStyle(Theme.appleBlue)
+                        .frame(width: 42, height: 42)
+                        .background(Color.white.opacity(0.08), in: Circle())
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Taste Twins are coming later")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(.white)
+                        Text("For now, Lens keeps your taste private and local.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(16)
+            }
+            .padding(.horizontal, 18)
         }
     }
 }

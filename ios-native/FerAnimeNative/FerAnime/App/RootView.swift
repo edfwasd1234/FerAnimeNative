@@ -1,23 +1,31 @@
 import SwiftUI
 
 struct RootView: View {
+    @EnvironmentObject private var appState: AppState
+
     var body: some View {
-        TabView {
-            HomeView()
-                .tabItem { Label("Home", systemImage: "play.tv.fill") }
+        Group {
+            if appState.hasCompletedLensOnboarding {
+                TabView {
+                    HomeView()
+                        .tabItem { Label("Home", systemImage: "house.fill") }
 
-            SearchView()
-                .tabItem { Label("Search", systemImage: "magnifyingglass") }
+                    LensPickView()
+                        .tabItem { Label("Pick", systemImage: "sparkles") }
 
-            MangaView()
-                .tabItem { Label("Manga", systemImage: "books.vertical.fill") }
+                    DiscoverView()
+                        .tabItem { Label("Discover", systemImage: "safari.fill") }
 
-            LibraryView()
-                .tabItem { Label("Library", systemImage: "rectangle.stack.fill") }
+                    LibraryView()
+                        .tabItem { Label("Library", systemImage: "rectangle.stack.fill") }
 
-            SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+                    ProfileView()
+                        .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }
+                }
+                .tint(Theme.appleBlue)
+            } else {
+                LensOnboardingView()
+            }
         }
-        .tint(Theme.appleBlue)
     }
 }
