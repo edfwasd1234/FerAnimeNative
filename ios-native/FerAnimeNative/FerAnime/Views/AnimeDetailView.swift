@@ -63,102 +63,98 @@ struct AnimeDetailView: View {
     // MARK: - Hero
 
     private var heroSection: some View {
-        ZStack(alignment: .bottom) {
-            AsyncImage(url: URL(string: display.banner ?? display.cover ?? "")) { phase in
-                switch phase {
-                case .success(let img):
-                    img.resizable().scaledToFill()
-                default:
-                    Color.white.opacity(0.08)
+        Color.clear
+            .frame(maxWidth: .infinity, minHeight: 400, maxHeight: 400)
+            .overlay {
+                AsyncImage(url: URL(string: display.banner ?? display.cover ?? "")) { phase in
+                    if case .success(let img) = phase {
+                        img.resizable().aspectRatio(contentMode: .fill)
+                    } else {
+                        Color.white.opacity(0.08)
+                    }
                 }
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 400)
             .clipped()
+            .overlay {
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black.opacity(0.18), location: 0.42),
+                        .init(color: Theme.background.opacity(0.94), location: 0.88),
+                        .init(color: Theme.background, location: 1.0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .overlay(alignment: .bottom) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(display.title)
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .minimumScaleFactor(0.72)
+                        .foregroundStyle(.white)
+                        .lineLimit(3)
+                        .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
 
-            LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0),
-                    .init(color: .black.opacity(0.18), location: 0.42),
-                    .init(color: Theme.background.opacity(0.94), location: 0.88),
-                    .init(color: Theme.background, location: 1.0)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(maxWidth: .infinity)
-            .frame(height: 400)
-
-            VStack(alignment: .leading, spacing: 14) {
-                Text(display.title)
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .minimumScaleFactor(0.72)
-                    .foregroundStyle(.white)
-                    .lineLimit(3)
-                    .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
-
-                HStack(spacing: 12) {
-                    if let score = display.score {
-                        MetaBadge(systemImage: "star.fill", text: String(format: "%.1f", score), color: .yellow)
+                    HStack(spacing: 12) {
+                        if let score = display.score {
+                            MetaBadge(systemImage: "star.fill", text: String(format: "%.1f", score), color: .yellow)
+                        }
+                        if let year = display.year {
+                            MetaBadge(systemImage: "calendar", text: String(year))
+                        }
+                        MetaBadge(systemImage: "tv", text: sourceId)
+                        if let status = display.status {
+                            MetaBadge(systemImage: "circle.fill", text: status)
+                        }
                     }
-                    if let year = display.year {
-                        MetaBadge(systemImage: "calendar", text: String(year))
-                    }
-                    MetaBadge(systemImage: "tv", text: sourceId)
-                    if let status = display.status {
-                        MetaBadge(systemImage: "circle.fill", text: status)
-                    }
-                }
 
-                if !display.genres.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(display.genres.prefix(6), id: \.self) { genre in
-                                GlassChip(text: genre)
+                    if !display.genres.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(display.genres.prefix(6), id: \.self) { genre in
+                                    GlassChip(text: genre)
+                                }
                             }
                         }
                     }
-                }
 
-                HStack(spacing: 10) {
-                    if let first = filteredEpisodes.first ?? episodes.first {
-                        NavigationLink {
-                            PlayerView(anime: playbackAnime, episode: first)
+                    HStack(spacing: 10) {
+                        if let first = filteredEpisodes.first ?? episodes.first {
+                            NavigationLink {
+                                PlayerView(anime: playbackAnime, episode: first)
+                            } label: {
+                                Label("Play", systemImage: "play.fill")
+                                    .font(.headline.weight(.bold))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .foregroundStyle(.white)
+                                    .background(Theme.appleBlue, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            }
+                            .buttonStyle(PressScaleStyle())
+                            .simultaneousGesture(TapGesture().onEnded { Haptics.impact(.medium) })
+                        }
+
+                        Button {
+                            appState.addToLensWatchlist(MediaItem(anime: playbackAnime))
+                            Haptics.impact(.light)
                         } label: {
-                            Label("Play", systemImage: "play.fill")
+                            Image(systemName: "plus")
                                 .font(.headline.weight(.bold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
+                                .frame(width: 52, height: 52)
                                 .foregroundStyle(.white)
-                                .background(Theme.appleBlue, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .background(Theme.panel, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .stroke(Theme.strokeBright, lineWidth: 0.75)
+                                )
                         }
                         .buttonStyle(PressScaleStyle())
-                        .simultaneousGesture(TapGesture().onEnded { Haptics.impact(.medium) })
                     }
-
-                    Button {
-                        appState.addToLensWatchlist(MediaItem(anime: playbackAnime))
-                        Haptics.impact(.light)
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.headline.weight(.bold))
-                            .frame(width: 52, height: 52)
-                            .foregroundStyle(.white)
-                            .background(Theme.panel, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .stroke(Theme.strokeBright, lineWidth: 0.75)
-                            )
-                    }
-                    .buttonStyle(PressScaleStyle())
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 22)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 22)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 400)
-        .clipped()
     }
 
     // MARK: - Content
