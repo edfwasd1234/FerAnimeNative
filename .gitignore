@@ -3,6 +3,10 @@ node_modules/
 dist/
 build/
 DerivedData/
+.env
+.env.*
+!.env.example
+*.local
 *.xcuserstate
 xcuserdata/
 *.ipa
