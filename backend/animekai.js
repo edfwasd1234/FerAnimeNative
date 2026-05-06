@@ -1,16 +1,16 @@
 const SOURCE = {
   id: "animekai",
   name: "AnimeKai",
-  baseUrl: "https://anikai.to"
+  baseUrl: "https://animekai.to"
 };
 
 const AJAX_HEADERS = {
-  Referer: "https://anikai.to/",
+  Referer: "https://animekai.to/",
   "X-Requested-With": "XMLHttpRequest"
 };
 
 const PAGE_HEADERS = {
-  Referer: "https://anikai.to/"
+  Referer: "https://animekai.to/"
 };
 
 const STREAM_UA =
@@ -145,6 +145,23 @@ async function search(query, page = 1) {
   };
 }
 
+async function catalog(section = "trending") {
+  const sectionMap = {
+    recommended: "trending",
+    trending: "trending",
+    popular: "popular",
+    new: "recent",
+    latest: "recent",
+    action: "trending"
+  };
+  const params = new URLSearchParams({
+    page: "1",
+    sort: sectionMap[section] || "trending"
+  });
+  const html = await requestText(`${SOURCE.baseUrl}/browser?${params.toString()}`, { headers: PAGE_HEADERS });
+  return { sourceId: SOURCE.id, section, items: parseBrowserItems(html) };
+}
+
 async function details(id) {
   const url = `${SOURCE.baseUrl}/watch/${id}`;
   const html = await requestText(url, { headers: PAGE_HEADERS });
@@ -266,19 +283,31 @@ async function streams(episodeId) {
     if (!embedUrl) continue;
 
     const url = embedUrl.includes("megaup") ? await getMegaupStream(embedUrl).catch(() => null) : null;
-    if (!url) continue;
 
-    results.push({
-      id: `${SOURCE.id}-${entry.lang.toLowerCase()}-${results.length}`,
-      label: `${entry.lang} - ${entry.name}`,
-      quality: "auto",
-      type: "hls",
-      url,
-      headers: {
-        Referer: SOURCE.baseUrl,
-        "User-Agent": STREAM_UA
-      }
-    });
+    if (url) {
+      results.push({
+        id: `${SOURCE.id}-${entry.lang.toLowerCase()}-${results.length}`,
+        label: `${entry.lang} - ${entry.name}`,
+        quality: "auto",
+        type: "hls",
+        url,
+        headers: {
+          Referer: SOURCE.baseUrl,
+          "User-Agent": STREAM_UA
+        }
+      });
+    } else {
+      results.push({
+        id: `${SOURCE.id}-${entry.lang.toLowerCase()}-embed-${results.length}`,
+        label: `${entry.lang} - ${entry.name}`,
+        quality: "embed",
+        type: "embed",
+        url: embedUrl,
+        headers: {
+          Referer: SOURCE.baseUrl
+        }
+      });
+    }
   }
 
   return results;
@@ -286,6 +315,7 @@ async function streams(episodeId) {
 
 module.exports = {
   SOURCE,
+  catalog,
   search,
   details,
   episodes,
