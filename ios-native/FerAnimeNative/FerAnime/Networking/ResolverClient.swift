@@ -70,6 +70,14 @@ final class ResolverClient: ObservableObject {
         try await get("/api/media/\(kind.rawValue.pathEncoded)/details/\(id.pathEncoded)", as: MediaItem.self)
     }
 
+    func mediaStreams(kind: MediaKind, id: String, season: Int = 1, episode: Int = 1) async throws -> [EpisodeStream] {
+        try await get(
+            "/api/media/\(kind.rawValue.pathEncoded)/\(id.pathEncoded)/streams",
+            query: ["season": String(season), "episode": String(episode)],
+            as: StreamsResponse.self
+        ).items
+    }
+
     func kodiMovies() async throws -> [MediaItem] {
         try await get("/api/kodi/movies", as: MediaSearchResponse.self).items
     }

@@ -213,6 +213,8 @@ struct MediaDetailView: View {
     let item: MediaItem
     @State private var details: MediaItem?
     @State private var errorMessage: String?
+    @State private var selectedSeason = 1
+    @State private var selectedEpisode = 1
 
     private var display: MediaItem { details ?? item }
 
@@ -223,6 +225,7 @@ struct MediaDetailView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     hero
                     synopsis
+                    playbackCard
                     if let seasons = display.seasons, !seasons.isEmpty {
                         seasonsSection(seasons)
                     }
@@ -285,6 +288,32 @@ struct MediaDetailView: View {
             }
             .padding(18)
         }
+    }
+
+    private var playbackCard: some View {
+        LiquidGlass(cornerRadius: 24) {
+            VStack(alignment: .leading, spacing: 14) {
+                Label("Vidsrc Embed", systemImage: "play.tv.fill")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(.white)
+                if display.kind == .show {
+                    Stepper("Season \(selectedSeason)", value: $selectedSeason, in: 1...99)
+                    Stepper("Episode \(selectedEpisode)", value: $selectedEpisode, in: 1...999)
+                }
+                NavigationLink {
+                    MediaPlaybackView(item: display, season: selectedSeason, episode: selectedEpisode)
+                } label: {
+                    Label(display.kind == .show ? "Play Episode" : "Play Movie", systemImage: "play.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                Text("Playback uses Vidsrc/VSEmbed's documented public embed endpoint.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.tertiary)
+            }
+            .padding(16)
+        }
+        .padding(.horizontal, 18)
     }
 
     private var synopsis: some View {
@@ -368,6 +397,49 @@ struct MediaDetailView: View {
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+}
+
+struct MediaPlaybackView: View {
+    @EnvironmentObject private var appState: AppState
+    let item: MediaItem
+    let season: Int
+    let episode: Int
+
+    @State private var embed: EpisodeStream?
+    @State private var message = "Preparing embed"
+
+    var body: some View {
+        ZStack {
+            Theme.background.ignoresSafeArea()
+            if let embed, let url = URL(string: embed.url) {
+                WebEmbedPlayerView(url: url) {
+                    message = "This embed is unavailable right now."
+                    self.embed = nil
+                }
+            } else {
+                VStack(spacing: 14) {
+                    ProgressView()
+                        .tint(.white)
+                    Text(message)
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(Theme.secondary)
+                }
+            }
+        }
+        .navigationTitle(item.kind == .show ? "Episode \(season)x\(episode)" : item.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
+        .task { await loadEmbed() }
+    }
+
+    private func loadEmbed() async {
+        do {
+            embed = try await appState.client.mediaStreams(kind: item.kind, id: item.id, season: season, episode: episode).first
+            message = embed == nil ? "No embed returned for this title." : ""
+        } catch {
+            message = error.localizedDescription
         }
     }
 }

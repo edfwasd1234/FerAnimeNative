@@ -11,6 +11,7 @@ const metadata = require("./metadata");
 const mangakatana = require("./mangakatana");
 const tmdb = require("./tmdb");
 const kodi = require("./kodi");
+const vsembed = require("./vsembed");
 
 const PORT = Number(process.env.PORT || process.env.FERANIME_RESOLVER_PORT || 4517);
 const resolvers = {
@@ -105,6 +106,20 @@ async function handle(req, res) {
 
     if (parts[0] === "api" && parts[1] === "media" && parts[2] && parts[3] === "details" && parts[4]) {
       sendJson(res, 200, await tmdb.details({ kind: parts[2], id: decodeURIComponent(parts[4]) }));
+      return;
+    }
+
+    if (parts[0] === "api" && parts[1] === "media" && parts[2] && parts[3] && parts[4] === "streams") {
+      sendJson(res, 200, {
+        items: vsembed.streams({
+          kind: parts[2],
+          id: decodeURIComponent(parts[3]),
+          season: Number(url.searchParams.get("season") || 1),
+          episode: Number(url.searchParams.get("episode") || 1),
+          subtitleLanguage: url.searchParams.get("ds_lang") || "",
+          subtitleUrl: url.searchParams.get("sub_url") || ""
+        })
+      });
       return;
     }
 

@@ -111,6 +111,18 @@ Check Kodi library movies:
 http://127.0.0.1:4517/api/kodi/movies
 ```
 
+Check Vidsrc/VSEmbed movie embed:
+
+```text
+http://127.0.0.1:4517/api/media/movie/385687/streams
+```
+
+Check Vidsrc/VSEmbed TV episode embed:
+
+```text
+http://127.0.0.1:4517/api/media/show/1399/streams?season=1&episode=1
+```
+
 Expected response:
 
 ```json
