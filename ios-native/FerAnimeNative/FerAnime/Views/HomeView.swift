@@ -9,6 +9,8 @@ struct HomeView: View {
     @State private var loading = true
     @State private var appeared = false
     @State private var heroIndex = 0
+    @State private var showSearch = false
+    @State private var showCalendar = false
     private let jikan = JikanClient()
 
     private var heroItems: [Anime] {
@@ -99,14 +101,14 @@ struct HomeView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 10) {
-                        NavigationLink { SeasonalCalendarView() } label: {
+                        Button { showCalendar = true; Haptics.impact(.light) } label: {
                             Image(systemName: "calendar")
                                 .font(.headline)
                                 .foregroundStyle(Theme.appleBlue)
                                 .frame(width: 36, height: 36)
                                 .background(Theme.panel, in: Circle())
                         }
-                        NavigationLink { SearchView() } label: {
+                        Button { showSearch = true; Haptics.impact(.light) } label: {
                             Image(systemName: "magnifyingglass")
                                 .font(.headline)
                                 .foregroundStyle(Theme.appleBlue)
@@ -119,6 +121,12 @@ struct HomeView: View {
             .navigationDestination(for: Anime.self) { AnimeDetailView(anime: $0) }
             .navigationDestination(for: AnimeSectionRoute.self) { route in
                 AnimeSectionView(title: route.title, items: route.items)
+            }
+            .navigationDestination(isPresented: $showCalendar) {
+                SeasonalCalendarView()
+            }
+            .fullScreenCover(isPresented: $showSearch) {
+                SearchView().environmentObject(appState)
             }
             .task {
                 withAnimation(.spring(response: 0.7, dampingFraction: 0.82)) { appeared = true }
