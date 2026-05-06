@@ -655,26 +655,73 @@ struct RadarChart: View {
             let size = min(proxy.size.width, proxy.size.height)
             let center = CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2)
             let radius = size * 0.38
-            ZStack {
-                ForEach(1...4, id: \.self) { step in
-                    RadarPolygon(values: Dictionary(uniqueKeysWithValues: TasteAxis.allCases.map { ($0, Double(step) / 4.0) }), radius: radius, center: center)
-                        .stroke(Color.white.opacity(0.10), lineWidth: 1)
-                }
-                RadarPolygon(values: values, radius: radius, center: center)
-                    .fill(Theme.appleBlue.opacity(0.28))
-                RadarPolygon(values: values, radius: radius, center: center)
-                    .stroke(Theme.appleBlue, lineWidth: 2)
+            RadarChartContent(values: values, center: center, radius: radius)
+        }
+    }
+}
 
-                ForEach(Array(TasteAxis.allCases.enumerated()), id: \.element.id) { index, axis in
-                    let angle = (Double(index) / Double(TasteAxis.allCases.count)) * Double.pi * 2 - Double.pi / 2
-                    let point = CGPoint(x: center.x + cos(angle) * radius * 1.22, y: center.y + sin(angle) * radius * 1.22)
-                    Text(axis.title)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(Theme.secondary)
-                        .position(point)
-                }
+private struct RadarChartContent: View {
+    let values: [TasteAxis: Double]
+    let center: CGPoint
+    let radius: CGFloat
+
+    var body: some View {
+        ZStack {
+            RadarGrid(center: center, radius: radius)
+            RadarPolygon(values: values, radius: radius, center: center)
+                .fill(Theme.appleBlue.opacity(0.28))
+            RadarPolygon(values: values, radius: radius, center: center)
+                .stroke(Theme.appleBlue, lineWidth: 2)
+            ForEach(Array(TasteAxis.allCases.enumerated()), id: \.element.id) { index, axis in
+                RadarAxisLabel(axis: axis, index: index, center: center, radius: radius)
             }
         }
+    }
+}
+
+private struct RadarGrid: View {
+    let center: CGPoint
+    let radius: CGFloat
+
+    var body: some View {
+        ForEach(1...4, id: \.self) { step in
+            RadarLevelPolygon(level: Double(step) / 4.0, radius: radius, center: center)
+                .stroke(Color.white.opacity(0.10), lineWidth: 1)
+        }
+    }
+}
+
+private struct RadarAxisLabel: View {
+    let axis: TasteAxis
+    let index: Int
+    let center: CGPoint
+    let radius: CGFloat
+
+    var body: some View {
+        Text(axis.title)
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(Theme.secondary)
+            .position(labelPoint)
+    }
+
+    private var labelPoint: CGPoint {
+        let count = CGFloat(TasteAxis.allCases.count)
+        let angle = (CGFloat(index) / count) * CGFloat.pi * 2 - CGFloat.pi / 2
+        return CGPoint(
+            x: center.x + cos(angle) * radius * 1.22,
+            y: center.y + sin(angle) * radius * 1.22
+        )
+    }
+}
+
+private struct RadarLevelPolygon: Shape {
+    let level: Double
+    let radius: CGFloat
+    let center: CGPoint
+
+    func path(in rect: CGRect) -> Path {
+        let values = Dictionary(uniqueKeysWithValues: TasteAxis.allCases.map { ($0, level) })
+        return RadarPolygon(values: values, radius: radius, center: center).path(in: rect)
     }
 }
 
@@ -687,8 +734,8 @@ struct RadarPolygon: Shape {
         var path = Path()
         let axes = TasteAxis.allCases
         for (index, axis) in axes.enumerated() {
-            let angle = (Double(index) / Double(axes.count)) * Double.pi * 2 - Double.pi / 2
-            let value = min(max(values[axis] ?? 0.5, 0), 1)
+            let angle = (CGFloat(index) / CGFloat(axes.count)) * CGFloat.pi * 2 - CGFloat.pi / 2
+            let value = CGFloat(min(max(values[axis] ?? 0.5, 0), 1))
             let point = CGPoint(
                 x: center.x + cos(angle) * radius * value,
                 y: center.y + sin(angle) * radius * value
