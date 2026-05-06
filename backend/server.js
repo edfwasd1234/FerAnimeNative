@@ -10,6 +10,7 @@ const anigo = require("./anigo");
 const metadata = require("./metadata");
 const mangakatana = require("./mangakatana");
 const tmdb = require("./tmdb");
+const kodi = require("./kodi");
 
 const PORT = Number(process.env.PORT || process.env.FERANIME_RESOLVER_PORT || 4517);
 const resolvers = {
@@ -89,6 +90,16 @@ async function handle(req, res) {
           page: Number(url.searchParams.get("page") || 1)
         })
       );
+      return;
+    }
+
+    if (url.pathname === "/api/kodi/movies") {
+      sendJson(res, 200, await kodi.movies());
+      return;
+    }
+
+    if (url.pathname === "/api/kodi/shows") {
+      sendJson(res, 200, await kodi.shows());
       return;
     }
 

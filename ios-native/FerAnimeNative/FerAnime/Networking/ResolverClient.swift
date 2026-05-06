@@ -70,6 +70,14 @@ final class ResolverClient: ObservableObject {
         try await get("/api/media/\(kind.rawValue.pathEncoded)/details/\(id.pathEncoded)", as: MediaItem.self)
     }
 
+    func kodiMovies() async throws -> [MediaItem] {
+        try await get("/api/kodi/movies", as: MediaSearchResponse.self).items
+    }
+
+    func kodiShows() async throws -> [MediaItem] {
+        try await get("/api/kodi/shows", as: MediaSearchResponse.self).items
+    }
+
     private func get<T: Decodable>(_ path: String, query: [String: String] = [:], as type: T.Type) async throws -> T {
         guard let baseURL,
               var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {

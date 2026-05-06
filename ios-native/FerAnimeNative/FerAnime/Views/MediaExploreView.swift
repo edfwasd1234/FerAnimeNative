@@ -7,6 +7,8 @@ struct MediaExploreView: View {
     @State private var popular: [MediaItem] = []
     @State private var topRated: [MediaItem] = []
     @State private var new: [MediaItem] = []
+    @State private var kodiMovies: [MediaItem] = []
+    @State private var kodiShows: [MediaItem] = []
     @State private var query = ""
     @State private var searchResults: [MediaItem] = []
     @State private var errorMessage: String?
@@ -26,6 +28,11 @@ struct MediaExploreView: View {
                         }
                         if !searchResults.isEmpty {
                             MediaRail(title: "Search Results", items: searchResults)
+                        }
+                        if selectedKind == .movie {
+                            MediaRail(title: "Kodi Movies", items: kodiMovies)
+                        } else {
+                            MediaRail(title: "Kodi Shows", items: kodiShows)
                         }
                         MediaRail(title: "Trending", items: trending)
                         MediaRail(title: "Popular", items: popular)
@@ -121,10 +128,14 @@ struct MediaExploreView: View {
             async let popularLoad = appState.client.mediaCatalog(kind: selectedKind, section: "popular")
             async let topLoad = appState.client.mediaCatalog(kind: selectedKind, section: "top_rated")
             async let newLoad = appState.client.mediaCatalog(kind: selectedKind, section: "new")
+            async let kodiMovieLoad = appState.client.kodiMovies()
+            async let kodiShowLoad = appState.client.kodiShows()
             trending = try await trendingLoad
             popular = try await popularLoad
             topRated = try await topLoad
             new = try await newLoad
+            kodiMovies = (try? await kodiMovieLoad) ?? []
+            kodiShows = (try? await kodiShowLoad) ?? []
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription

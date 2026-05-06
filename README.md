@@ -67,6 +67,20 @@ You can also use the v3 key instead:
 TMDB_API_KEY=your_tmdb_api_key_here
 ```
 
+Optional: connect your own Kodi library over your LAN. In Kodi, enable:
+
+```text
+Settings > Services > Control > Allow remote control via HTTP
+```
+
+Then add this to `.env`:
+
+```text
+KODI_URL=http://your_kodi_lan_ip:8080/jsonrpc
+KODI_USERNAME=optional_username
+KODI_PASSWORD=optional_password
+```
+
 Start the resolver:
 
 ```powershell
@@ -89,6 +103,12 @@ Check TMDB TV metadata:
 
 ```text
 http://127.0.0.1:4517/api/media/catalog?kind=show&section=popular
+```
+
+Check Kodi library movies:
+
+```text
+http://127.0.0.1:4517/api/kodi/movies
 ```
 
 Expected response:
