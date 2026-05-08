@@ -38,7 +38,10 @@ struct HomeView: View {
         let personalized = pool.filter { anime in
             guard !watchedTitles.contains(anime.title.lowercased()), !seen.contains(anime.id) else { return false }
             let hasMatch = !watchedGenres.isEmpty && anime.genres.contains { watchedGenres.contains($0) }
-            if hasMatch { seen.insert(anime.id); return true }
+            if hasMatch {
+                seen.insert(anime.id)
+                return true
+            }
             return false
         }
         if !personalized.isEmpty { return Array(personalized.prefix(12)) }
@@ -89,6 +92,7 @@ struct HomeView: View {
                     .padding(.bottom, 100)
                 }
                 .refreshable { await load(force: true) }
+                .scrollIndicators(.hidden)
             }
             .navigationTitle("FerAnime")
             .navigationBarTitleDisplayMode(.inline)
@@ -101,19 +105,25 @@ struct HomeView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 10) {
-                        Button { showCalendar = true; Haptics.impact(.light) } label: {
+                        Button {
+                            showCalendar = true
+                            Haptics.impact(.light)
+                        } label: {
                             Image(systemName: "calendar")
                                 .font(.headline)
                                 .foregroundStyle(Theme.appleBlue)
                                 .frame(width: 36, height: 36)
-                                .background(Theme.panel, in: Circle())
+                                .background(.thinMaterial, in: Circle())
                         }
-                        Button { showSearch = true; Haptics.impact(.light) } label: {
+                        Button {
+                            showSearch = true
+                            Haptics.impact(.light)
+                        } label: {
                             Image(systemName: "magnifyingglass")
                                 .font(.headline)
                                 .foregroundStyle(Theme.appleBlue)
                                 .frame(width: 36, height: 36)
-                                .background(Theme.panel, in: Circle())
+                                .background(.thinMaterial, in: Circle())
                         }
                     }
                 }
@@ -139,11 +149,9 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Lens Pick Banner
-
     private var lensPickBanner: some View {
         NavigationLink { LensPickView() } label: {
-            LiquidGlass(cornerRadius: 28, glow: Theme.appleBlue.opacity(0.16)) {
+            LiquidGlass(cornerRadius: 28, glow: Theme.appleBlue.opacity(0.10), material: .thinMaterial) {
                 HStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Find My Watch")
@@ -155,23 +163,18 @@ struct HomeView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer()
-                    ZStack {
-                        Circle()
-                            .fill(Theme.appleBlue.opacity(0.18))
-                            .frame(width: 56, height: 56)
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundStyle(Theme.appleBlue)
-                    }
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(Theme.appleBlue)
+                        .frame(width: 56, height: 56)
+                        .background(.ultraThinMaterial, in: Circle())
                 }
                 .padding(18)
             }
         }
-        .buttonStyle(PressScaleStyle())
+        .buttonStyle(LiquidGlassPressStyle(cornerRadius: 28))
         .padding(.horizontal, 20)
     }
-
-    // MARK: - Hero Carousel
 
     private var heroCarousel: some View {
         Group {
@@ -200,8 +203,6 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Continue Watching
-
     private var continueWatchingRail: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader(title: "Continue Watching")
@@ -221,8 +222,6 @@ struct HomeView: View {
             }
         }
     }
-
-    // MARK: - Watchlist Rail
 
     private var watchlistRail: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -247,10 +246,11 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Load
-
     private func load(force: Bool) async {
-        if !force, applyCachedCatalogs() { loading = false; return }
+        if !force, applyCachedCatalogs() {
+            loading = false
+            return
+        }
         loading = true
         let catalogs = await jikan.homeCatalogs()
         if !catalogs.recommended.isEmpty { recommended = catalogs.recommended }
@@ -290,8 +290,6 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Hero Card
-
 private struct HeroCard: View {
     let anime: Anime
 
@@ -304,8 +302,8 @@ private struct HeroCard: View {
             LinearGradient(
                 stops: [
                     .init(color: .clear, location: 0),
-                    .init(color: .black.opacity(0.20), location: 0.45),
-                    .init(color: .black.opacity(0.72), location: 1.0)
+                    .init(color: .black.opacity(0.18), location: 0.45),
+                    .init(color: .black.opacity(0.68), location: 1.0)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -321,7 +319,7 @@ private struct HeroCard: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(.black.opacity(0.30), in: Capsule())
+                .background(.thinMaterial, in: Capsule())
 
                 Text(anime.title)
                     .font(.system(size: 28, weight: .bold, design: .rounded))
@@ -330,24 +328,23 @@ private struct HeroCard: View {
                     .lineLimit(2)
                     .shadow(color: .black.opacity(0.6), radius: 4, y: 2)
 
-                HStack(spacing: 8) {
-                    Image(systemName: "play.fill")
-                        .font(.caption.weight(.bold))
-                    Text("Watch Now")
-                        .font(.callout.weight(.bold))
+                LiquidGlass(cornerRadius: 18, glow: .clear, material: .thinMaterial) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "play.fill")
+                            .font(.caption.weight(.bold))
+                        Text("Watch Now")
+                            .font(.callout.weight(.bold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 9)
                 }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 9)
-                .background(Theme.appleBlue, in: Capsule())
             }
             .padding(20)
         }
         .padding(.horizontal, 20)
     }
 }
-
-// MARK: - Continue Card
 
 private struct ContinueCard: View {
     let item: WatchProgress
@@ -380,8 +377,6 @@ private struct ContinueCard: View {
         }
     }
 }
-
-// MARK: - Anime Rail
 
 struct AnimeRail: View {
     let title: String
@@ -506,6 +501,7 @@ private extension WatchProgress {
               title: animeTitle, subtitle: sourceId, cover: image, banner: image,
               year: nil, score: nil, genres: [], status: nil, progress: nil, synopsis: nil)
     }
+
     var episode: Episode {
         Episode(id: episodeId, animeId: animeId, sourceId: sourceId,
                 number: episodeNumber, title: episodeTitle, duration: nil, streamUrl: nil)

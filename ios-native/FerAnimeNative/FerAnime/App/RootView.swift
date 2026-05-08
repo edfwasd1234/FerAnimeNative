@@ -32,5 +32,6 @@ struct RootView: View {
                 .tabItem { Label("Profile", systemImage: "person.crop.circle.fill") }
         }
         .tint(Theme.appleBlue)
+        .nativeGlassTabBar()
     }
 }

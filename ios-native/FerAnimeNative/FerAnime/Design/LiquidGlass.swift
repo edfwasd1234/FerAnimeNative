@@ -5,16 +5,19 @@ import UIKit
 
 enum Haptics {
     static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .soft) {
-        let g = UIImpactFeedbackGenerator(style: style)
-        g.prepare()
-        g.impactOccurred()
+        let generator = UIImpactFeedbackGenerator(style: style)
+        generator.prepare()
+        generator.impactOccurred()
     }
-    static func selection() { UISelectionFeedbackGenerator().selectionChanged() }
+
+    static func selection() {
+        let generator = UISelectionFeedbackGenerator()
+        generator.prepare()
+        generator.selectionChanged()
+    }
 }
 
 // MARK: - Core Glass Container
-// On iOS 26+, TabView and NavigationStack automatically receive Liquid Glass treatment.
-// Custom surfaces use .regularMaterial which iOS 26 also renders as Liquid Glass.
 
 struct LiquidGlass<Content: View>: View {
     var cornerRadius: CGFloat = 22
@@ -40,16 +43,16 @@ struct LiquidGlass<Content: View>: View {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(
                         LinearGradient(
-                            colors: [.white.opacity(0.22), .white.opacity(0.06)],
+                            colors: [.white.opacity(0.28), .white.opacity(0.07)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
-                        lineWidth: 0.75
+                        lineWidth: 0.85
                     )
                     .allowsHitTesting(false)
             }
-            .shadow(color: glow, radius: 22, x: 0, y: 6)
-            .shadow(color: .black.opacity(0.22), radius: 18, x: 0, y: 8)
+            .shadow(color: glow, radius: 20, x: 0, y: 7)
+            .shadow(color: .black.opacity(0.24), radius: 20, x: 0, y: 10)
     }
 }
 
@@ -63,6 +66,25 @@ struct PressScaleStyle: ButtonStyle {
             .animation(.spring(response: 0.24, dampingFraction: 0.72), value: configuration.isPressed)
             .onChange(of: configuration.isPressed) { _, isPressed in
                 if isPressed { Haptics.impact(.soft) }
+            }
+    }
+}
+
+struct LiquidGlassPressStyle: ButtonStyle {
+    var cornerRadius: CGFloat = 22
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.white.opacity(configuration.isPressed ? 0.36 : 0.15), lineWidth: 0.85)
+            }
+            .scaleEffect(configuration.isPressed ? 0.965 : 1)
+            .brightness(configuration.isPressed ? 0.05 : 0)
+            .animation(.spring(response: 0.24, dampingFraction: 0.72), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, isPressed in
+                if isPressed { Haptics.selection() }
             }
     }
 }
@@ -171,7 +193,6 @@ struct PosterImage: View {
 
 // MARK: - Section Headers
 
-/// Large page-level header with eyebrow subtitle.
 struct FrostedHeader: View {
     var title: String
     var subtitle: String
@@ -188,7 +209,7 @@ struct FrostedHeader: View {
                     .foregroundStyle(.white)
             }
             Spacer()
-            LiquidGlass(cornerRadius: 18, glow: Theme.appleBlue.opacity(0.10)) {
+            LiquidGlass(cornerRadius: 18, glow: Theme.appleBlue.opacity(0.10), material: .thinMaterial) {
                 Image(systemName: "sparkles.tv.fill")
                     .font(.headline.weight(.semibold))
                     .foregroundStyle(Theme.appleBlue)
@@ -200,7 +221,6 @@ struct FrostedHeader: View {
     }
 }
 
-/// Compact rail/section header with optional "See All" link.
 struct SectionHeader: View {
     let title: String
     var seeAllAction: (() -> Void)? = nil
@@ -232,7 +252,37 @@ struct SectionHeader: View {
 
 struct PremiumBackdrop: View {
     var body: some View {
-        Theme.background.ignoresSafeArea()
+        ZStack {
+            Theme.background
+            Color.white.opacity(0.012)
+        }
+        .ignoresSafeArea()
+    }
+}
+
+struct NativeGlassTabBar: ViewModifier {
+    init() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
+        appearance.backgroundColor = UIColor.black.withAlphaComponent(0.18)
+        appearance.shadowColor = UIColor.white.withAlphaComponent(0.10)
+
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .toolbarBackground(.ultraThinMaterial, for: .tabBar)
+            .toolbarBackground(.visible, for: .tabBar)
+            .toolbarColorScheme(.dark, for: .tabBar)
+    }
+}
+
+extension View {
+    func nativeGlassTabBar() -> some View {
+        modifier(NativeGlassTabBar())
     }
 }
 
