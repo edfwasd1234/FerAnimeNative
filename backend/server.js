@@ -12,6 +12,7 @@ const mangakatana = require("./mangakatana");
 const tmdb = require("./tmdb");
 const kodi = require("./kodi");
 const vsembed = require("./vsembed");
+const wcotv = require("./wcotv");
 
 const PORT = Number(process.env.PORT || process.env.FERANIME_RESOLVER_PORT || 4517);
 const resolvers = {
@@ -19,10 +20,11 @@ const resolvers = {
   hianime,
   anigo,
   animekai,
-  anizone
+  anizone,
+  wcotv
 };
 const defaultSourceId = "animeheaven";
-const sources = [animeheaven.SOURCE, anigo.SOURCE, animekai.SOURCE, anizone.SOURCE];
+const sources = [animeheaven.SOURCE, anigo.SOURCE, animekai.SOURCE, anizone.SOURCE, wcotv.SOURCE];
 
 function sendJson(res, status, body) {
   res.writeHead(status, {
