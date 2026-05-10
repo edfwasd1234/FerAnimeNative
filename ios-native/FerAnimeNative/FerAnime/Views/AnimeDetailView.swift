@@ -275,36 +275,40 @@ struct AnimeDetailView: View {
             preferredLanguage = saved
         }
 
-        let source = "wcotv"
-
-        if let sid = anime.sourceId, sid == source {
-            let detailKey = appState.cacheKey(sid, anime.id, "details")
-            let episodesKey = appState.cacheKey(sid, anime.id, "episodes")
-            if let cached = appState.cachedAnimeDetails[detailKey] {
-                details = cached
-            } else if let loaded = try? await appState.client.details(sourceId: sid, animeId: anime.id) {
-                details = loaded
-                appState.cachedAnimeDetails[detailKey] = loaded
+        for source in ["wcotv", "animegg"] {
+            if let sid = anime.sourceId, sid == source {
+                let detailKey = appState.cacheKey(sid, anime.id, "details")
+                let episodesKey = appState.cacheKey(sid, anime.id, "episodes")
+                if let cached = appState.cachedAnimeDetails[detailKey] {
+                    details = cached
+                } else if let loaded = try? await appState.client.details(sourceId: sid, animeId: anime.id) {
+                    details = loaded
+                    appState.cachedAnimeDetails[detailKey] = loaded
+                }
+                if let cached = appState.cachedEpisodes[episodesKey] {
+                    episodes = cached
+                } else {
+                    let loaded = (try? await appState.client.episodes(sourceId: sid, animeId: anime.id)) ?? []
+                    episodes = loaded
+                    if !loaded.isEmpty { appState.cachedEpisodes[episodesKey] = loaded }
+                }
+                return
             }
-            if let cached = appState.cachedEpisodes[episodesKey] {
-                episodes = cached
+
+            guard let match = try? await appState.client.search(anime.title, sourceId: source).first else { continue }
+            let matchEpsKey = appState.cacheKey(source, match.id, "episodes")
+            let loaded: [Episode]
+            if let cached = appState.cachedEpisodes[matchEpsKey] {
+                loaded = cached
             } else {
-                let loaded = (try? await appState.client.episodes(sourceId: sid, animeId: anime.id)) ?? []
-                episodes = loaded
-                if !loaded.isEmpty { appState.cachedEpisodes[episodesKey] = loaded }
+                loaded = (try? await appState.client.episodes(sourceId: source, animeId: match.id)) ?? []
+                if !loaded.isEmpty { appState.cachedEpisodes[matchEpsKey] = loaded }
             }
-            return
-        }
-
-        guard let match = try? await appState.client.search(anime.title, sourceId: source).first else { return }
-        resolvedAnime = match
-        let episodesKey = appState.cacheKey(source, match.id, "episodes")
-        if let cached = appState.cachedEpisodes[episodesKey] {
-            episodes = cached
-        } else {
-            let loaded = (try? await appState.client.episodes(sourceId: source, animeId: match.id)) ?? []
-            episodes = loaded
-            if !loaded.isEmpty { appState.cachedEpisodes[episodesKey] = loaded }
+            if !loaded.isEmpty {
+                resolvedAnime = match
+                episodes = loaded
+                return
+            }
         }
     }
 }
