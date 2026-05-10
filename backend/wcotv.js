@@ -1,22 +1,31 @@
+const { execFile } = require("node:child_process");
+const { promisify } = require("node:util");
+const execFileAsync = promisify(execFile);
+
 const SOURCE = {
   id: "wcotv",
   name: "WCO.tv",
   baseUrl: "https://www.wco.tv"
 };
 
-const HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
-  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-  "Accept-Language": "en-US,en;q=0.5"
-};
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36";
 
+// wco.tv blocks Node.js fetch via TLS fingerprinting; curl bypasses it cleanly.
 async function requestText(url, extraHeaders = {}) {
-  const resp = await fetch(url, {
-    headers: { ...HEADERS, Referer: SOURCE.baseUrl + "/", ...extraHeaders }
-  });
-  if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText} — ${url}`);
-  return resp.text();
+  const args = [
+    "-s", "-L", "--max-time", "30",
+    "-A", UA,
+    "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "-H", "Accept-Language: en-US,en;q=0.9",
+    "-H", `Referer: ${SOURCE.baseUrl}/`
+  ];
+  for (const [k, v] of Object.entries(extraHeaders)) {
+    args.push("-H", `${k}: ${v}`);
+  }
+  args.push(url);
+  const { stdout } = await execFileAsync("curl", args, { maxBuffer: 10 * 1024 * 1024, timeout: 30000 });
+  if (!stdout) throw new Error(`Empty response from ${url}`);
+  return stdout;
 }
 
 function decodeHtml(s) {
@@ -56,7 +65,6 @@ function animeSlugFromUrl(url) {
 }
 
 function episodeSlugFromUrl(url) {
-  // strip domain, get last path segment
   const v = String(url || "").replace(/\/$/, "");
   const m = v.match(/\/([^/]+)$/);
   return m ? m[1] : "";
@@ -86,31 +94,34 @@ function parseShowCards(html) {
   const items = [];
   const seen = new Set();
 
-  // Attempt 1: <article> blocks (standard WordPress theme)
-  const articleRe = /<article[^>]*>([\s\S]*?)<\/article>/gi;
+  // wco.tv search/list: <ul class="items"><li> blocks
+  const liRe = /<li[^>]*>([\s\S]*?)<\/li>/gi;
   let m;
-  while ((m = articleRe.exec(html || "")) !== null) {
+  while ((m = liRe.exec(html || "")) !== null) {
     const block = m[1];
-    const linkM = block.match(/<a\s+href=["']([^"']+\/anime\/[^"']+)["'][^>]*/i);
+    const linkM = block.match(/<a\s+href=["']([^"']*\/anime\/([^/"'\s]+))["'][^>]*/i);
     if (!linkM) continue;
-    const id = animeSlugFromUrl(linkM[1]);
+    const id = linkM[2].replace(/\/$/, "");
     if (!id || seen.has(id)) continue;
     seen.add(id);
     const imgTag = block.match(/<img[^>]+>/i)?.[0] || "";
     const cover = attr(imgTag, "data-src") || attr(imgTag, "data-lazy-src") || attr(imgTag, "src");
-    const titleM = block.match(/<h\d[^>]*>([\s\S]*?)<\/h\d>/i);
-    const title = titleM ? cleanText(titleM[1]) : (attr(imgTag, "alt") || id);
+    const titleEl = block.match(/<span[^>]*>([^<]{3,})<\/span>/i)
+      || block.match(/<div[^>]*class=["'][^"']*title[^"']*["'][^>]*>([^<]+)<\/div>/i);
+    const title = titleEl
+      ? cleanText(titleEl[1])
+      : (attr(imgTag, "alt") || decodeHtml(id.replace(/-/g, " ")));
     items.push(makeAnime(id, title, cover));
   }
 
-  // Attempt 2: direct /anime/ links with title attribute
+  // Fallback: bare /anime/ links anywhere in the page
   if (items.length === 0) {
-    const linkRe = /<a\s+href=["']([^"']+\/anime\/([^/"'\s]+))["'][^>]*(?:title=["']([^"']+)["'])?[^>]*>([^<]*)/gi;
+    const linkRe = /<a\s+href=["']([^"']*\/anime\/([^/"'\s]+))["'][^>]*(?:\s+title=["']([^"']+)["'])?[^>]*>([^<]*)/gi;
     while ((m = linkRe.exec(html || "")) !== null) {
       const id = m[2].replace(/\/$/, "");
       if (!id || seen.has(id)) continue;
       seen.add(id);
-      const title = decodeHtml((m[3] || m[4] || id).trim());
+      const title = decodeHtml((m[3] || m[4] || id.replace(/-/g, " ")).trim());
       items.push(makeAnime(id, title, null));
     }
   }
@@ -122,30 +133,33 @@ function parseShowCards(html) {
 
 async function search(query, page = 1) {
   const q = (query || "").trim();
-  let url;
   if (!q) {
-    url = `${SOURCE.baseUrl}/anime-list`;
-  } else {
-    url = page > 1
-      ? `${SOURCE.baseUrl}/page/${page}/?s=${encodeURIComponent(q)}`
-      : `${SOURCE.baseUrl}/?s=${encodeURIComponent(q)}`;
+    const html = await requestText(`${SOURCE.baseUrl}/`);
+    return { sourceId: SOURCE.id, items: parseShowCards(html), hasNextPage: false };
   }
-  const html = await requestText(url);
+
+  // wco.tv search uses POST /search with form data
+  const args = [
+    "-s", "-L", "--max-time", "30",
+    "-A", UA,
+    "-H", "Accept: */*",
+    "-H", "Accept-Language: en-US,en;q=0.9",
+    "-H", `Referer: ${SOURCE.baseUrl}/`,
+    "-H", "X-Requested-With: XMLHttpRequest",
+    "--data", `catara=${encodeURIComponent(q)}&konuara=series`,
+    `${SOURCE.baseUrl}/search`
+  ];
+  const { stdout } = await execFileAsync("curl", args, { maxBuffer: 5 * 1024 * 1024, timeout: 30000 });
   return {
     sourceId: SOURCE.id,
-    items: parseShowCards(html),
-    hasNextPage: /(?:class=["'][^"']*\bnext\b[^"']*["']|rel=["']next["'])/i.test(html)
+    items: parseShowCards(stdout || ""),
+    hasNextPage: false
   };
 }
 
 async function catalog(section = "recommended") {
-  const routes = {
-    recommended: `${SOURCE.baseUrl}/anime-list`,
-    trending: `${SOURCE.baseUrl}/anime-list`,
-    new: `${SOURCE.baseUrl}/`,
-    cartoon: `${SOURCE.baseUrl}/cartoon-list`
-  };
-  const html = await requestText(routes[section] || routes.recommended);
+  // Anime list pages are JS-rendered; use the homepage for static content
+  const html = await requestText(`${SOURCE.baseUrl}/`);
   return { sourceId: SOURCE.id, section, items: parseShowCards(html), hasNextPage: false };
 }
 
@@ -154,8 +168,8 @@ async function details(id) {
   const html = await requestText(url);
 
   const titleM =
-    html.match(/<h1[^>]*class=["'][^"']*(?:entry-title|cat-genre)[^"']*["'][^>]*>([\s\S]*?)<\/h1>/i) ||
     html.match(/<h2[^>]*class=["'][^"']*cat-genre[^"']*["'][^>]*>([\s\S]*?)<\/h2>/i) ||
+    html.match(/<h1[^>]*class=["'][^"']*(?:entry-title|cat-genre)[^"']*["'][^>]*>([\s\S]*?)<\/h1>/i) ||
     html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
 
   const synM =
@@ -191,31 +205,34 @@ async function episodes(itemId) {
   const url = `${SOURCE.baseUrl}/anime/${itemId}/`;
   const html = await requestText(url);
 
-  const titleM = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  const titleM =
+    html.match(/<h2[^>]*class=["'][^"']*cat-genre[^"']*["'][^>]*>([\s\S]*?)<\/h2>/i) ||
+    html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
   const seriesTitle = titleM ? cleanText(titleM[1]) : itemId;
 
   const out = [];
   const seen = new Set();
 
-  // Primary: episode links that contain "episode" in href or text
-  const epLinkRe = /<a\s+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-  let match;
-  while ((match = epLinkRe.exec(html || "")) !== null) {
-    const href = match[1];
-    const label = cleanText(match[2]);
-    const combined = `${href} ${label}`;
-
-    if (!/(?:episode|ep[\s-]?\d)/i.test(combined)) continue;
-    if (/\/anime\//i.test(href)) continue;
+  // wco.tv episode list: <div class="cat-eps"><a href="..." title="Watch ...">
+  const catEpsRe = /<div[^>]*class=["'][^"']*cat-eps[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi;
+  let m;
+  while ((m = catEpsRe.exec(html || "")) !== null) {
+    const block = m[1];
+    const linkM = block.match(/<a\s+href=["']([^"']+)["'][^>]*(?:\s+title=["']([^"']+)["'])?[^>]*>([^<]*)/i);
+    if (!linkM) continue;
+    const href = linkM[1];
+    const titleAttr = cleanText(linkM[2] || "");
+    const linkText = cleanText(linkM[3] || "");
+    const label = titleAttr || linkText;
+    if (!label && !href) continue;
 
     const absHref = /^https?:\/\//i.test(href) ? href : absoluteUrl(href);
     const slug = episodeSlugFromUrl(absHref) || href.replace(/^\/|\/$/g, "");
     if (!slug || seen.has(slug)) continue;
     seen.add(slug);
 
-    const epNumM =
-      slug.match(/episode[- ]?(\d+(?:\.\d+)?)/i) ||
-      label.match(/(?:episode|ep)[- ]?(\d+(?:\.\d+)?)/i);
+    const combined = `${slug} ${label}`;
+    const epNumM = combined.match(/episode[- ]?(\d+(?:\.\d+)?)/i);
     const number = epNumM ? parseFloat(epNumM[1]) : out.length + 1;
     const lang = detectLang(combined);
     const langLabel = lang === "dub" ? "Dubbed" : "Subbed";
@@ -225,18 +242,19 @@ async function episodes(itemId) {
       animeId: itemId,
       sourceId: SOURCE.id,
       number,
-      title: label && label.length > 2 ? label : `${seriesTitle} Episode ${number} (${langLabel})`,
+      title: label || `${seriesTitle} Episode ${number} (${langLabel})`,
       duration: langLabel
     });
   }
 
-  // Fallback: list-item links with dubbed/subbed anywhere
+  // Fallback: episode-keyed links anywhere in page
   if (out.length === 0) {
-    const liRe = /<li[^>]*>\s*<a\s+href=["']([^"']+)["'][^>]*>([^<]+)<\/a>/gi;
-    while ((match = liRe.exec(html || "")) !== null) {
-      const href = match[1];
-      const label = cleanText(match[2]);
-      if (!/(?:dubbed|subbed)/i.test(`${href} ${label}`)) continue;
+    const epLinkRe = /<a\s+href=["']([^"']+)["'][^>]*(?:\s+title=["']([^"']+)["'])?[^>]*>([^<]*)/gi;
+    while ((m = epLinkRe.exec(html || "")) !== null) {
+      const href = m[1];
+      const label = cleanText(m[2] || m[3] || "");
+      if (!/episode/i.test(`${href} ${label}`)) continue;
+      if (/\/anime\//i.test(href)) continue;
 
       const absHref = /^https?:\/\//i.test(href) ? href : absoluteUrl(href);
       const slug = episodeSlugFromUrl(absHref) || href.replace(/^\/|\/$/g, "");
@@ -261,180 +279,20 @@ async function episodes(itemId) {
 
   return out.sort((a, b) => {
     if (a.number !== b.number) return a.number - b.number;
-    // sub before dub for same number
     return (a.duration === "Dubbed" ? 1 : 0) - (b.duration === "Dubbed" ? 1 : 0);
   });
 }
 
 // ── Stream extraction ────────────────────────────────────────────────────────
-
-function extractVideoSources(html, referer) {
-  const out = [];
-  const seen = new Set();
-
-  // JWPlayer sources array: sources: [{file: "...", label: "..."}]
-  const sourcesM = html.match(/sources\s*:\s*\[([\s\S]*?)\]/i);
-  if (sourcesM) {
-    const block = sourcesM[1];
-    const fileRe = /file\s*:\s*["']([^"']+)["']/gi;
-    const labelRe = /label\s*:\s*["']([^"']+)["']/gi;
-    const files = [];
-    const labels = [];
-    let fm, lm;
-    while ((fm = fileRe.exec(block)) !== null) files.push(decodeHtml(fm[1]));
-    while ((lm = labelRe.exec(block)) !== null) labels.push(lm[1]);
-    for (let i = 0; i < files.length; i++) {
-      const url = files[i];
-      if (!url || seen.has(url)) continue;
-      seen.add(url);
-      const isHls = /\.m3u8/i.test(url);
-      out.push({
-        id: `wcotv-jw-${i}`,
-        label: labels[i] || (isHls ? "HLS" : "MP4"),
-        quality: labels[i] || "auto",
-        type: isHls ? "hls" : "mp4",
-        url,
-        headers: { Referer: referer }
-      });
-    }
-  }
-
-  // JWPlayer single file: jwplayer(...).setup({ file: "..." })
-  if (out.length === 0) {
-    const singleM = html.match(/\.setup\s*\(\s*\{[\s\S]*?file\s*:\s*["']([^"']+)["']/i);
-    if (singleM) {
-      const url = decodeHtml(singleM[1]);
-      if (url && !seen.has(url)) {
-        seen.add(url);
-        const isHls = /\.m3u8/i.test(url);
-        out.push({
-          id: "wcotv-jw-0",
-          label: isHls ? "HLS" : "MP4",
-          quality: "auto",
-          type: isHls ? "hls" : "mp4",
-          url,
-          headers: { Referer: referer }
-        });
-      }
-    }
-  }
-
-  // Any bare .m3u8 or .mp4 URLs in assignment context
-  if (out.length === 0) {
-    const urlRe = /(?:file|src|url|source)\s*[=:]\s*["']([^"']+\.(?:m3u8|mp4)[^"']*)["']/gi;
-    let m;
-    while ((m = urlRe.exec(html || "")) !== null) {
-      const url = decodeHtml(m[1]);
-      if (!url || seen.has(url) || /^data:/i.test(url)) continue;
-      seen.add(url);
-      const isHls = /\.m3u8/i.test(url);
-      out.push({
-        id: `wcotv-direct-${out.length}`,
-        label: isHls ? "HLS" : "MP4",
-        quality: "auto",
-        type: isHls ? "hls" : "mp4",
-        url,
-        headers: { Referer: referer }
-      });
-    }
-  }
-
-  return out;
-}
-
-async function tryGetvid(html, embedReferer) {
-  // Look for getvid content ID in page JS
-  const idM =
-    html.match(/video_content_id\s*=\s*["']?([A-Za-z0-9_=-]{6,})["']?/i) ||
-    html.match(/evid=["']?([A-Za-z0-9_=-]{6,})["']?/i) ||
-    html.match(/getJSON\s*\(\s*["']([^"']*getvid[^"']*)["']/i);
-
-  if (!idM) return [];
-
-  const rawId = idM[1];
-  // If the captured group already looks like a full URL, use it; otherwise build candidates
-  const candidates = /^https?:\/\//i.test(rawId)
-    ? [rawId]
-    : [
-        `https://cdn.wcofun.net/getvid?evid=${encodeURIComponent(rawId)}`,
-        `https://www.wcostream.com/getvid?evid=${encodeURIComponent(rawId)}`,
-        `https://www.wco.tv/getvid?evid=${encodeURIComponent(rawId)}`
-      ];
-
-  for (const apiUrl of candidates) {
-    try {
-      const resp = await fetch(apiUrl, { headers: { ...HEADERS, Referer: embedReferer } });
-      if (!resp.ok) continue;
-      const text = await resp.text();
-      const sources = parseGetvidResponse(text, apiUrl);
-      if (sources.length) return sources;
-    } catch {
-      // try next candidate
-    }
-  }
-  return [];
-}
-
-function parseGetvidResponse(text, referer) {
-  const out = [];
-  try {
-    const data = JSON.parse(text);
-    if (Array.isArray(data)) {
-      for (const item of data) {
-        const url = item.file || item.url || item.src;
-        if (!url) continue;
-        const isHls = /\.m3u8/i.test(url);
-        out.push({
-          id: `wcotv-getvid-${out.length}`,
-          label: item.label || (isHls ? "HLS" : "MP4"),
-          quality: item.label || "auto",
-          type: isHls ? "hls" : "mp4",
-          url,
-          headers: { Referer: referer }
-        });
-      }
-    } else if (data && typeof data === "object") {
-      for (const [key, value] of Object.entries(data)) {
-        if (typeof value !== "string" || !/^https?:\/\//i.test(value)) continue;
-        const isHls = /\.m3u8/i.test(value);
-        out.push({
-          id: `wcotv-getvid-${out.length}`,
-          label: key,
-          quality: key,
-          type: isHls ? "hls" : "mp4",
-          url: value,
-          headers: { Referer: referer }
-        });
-      }
-    }
-  } catch {
-    // Non-JSON: try bare URL extraction
-    const urlRe = /https?:\/\/[^"'\s,]+\.(?:m3u8|mp4)[^"'\s,]*/gi;
-    let m;
-    while ((m = urlRe.exec(text || "")) !== null) {
-      const isHls = /\.m3u8/i.test(m[0]);
-      out.push({
-        id: `wcotv-getvid-${out.length}`,
-        label: isHls ? "HLS" : "MP4",
-        quality: "auto",
-        type: isHls ? "hls" : "mp4",
-        url: m[0],
-        headers: { Referer: referer }
-      });
-    }
-  }
-  return out;
-}
-
-async function fetchEmbed(url, referer) {
-  try {
-    const resp = await fetch(url, { headers: { ...HEADERS, Referer: referer } });
-    if (!resp.ok) return null;
-    return resp.text();
-  } catch {
-    return null;
-  }
-}
+//
+// Pipeline:
+//   1. Fetch episode page
+//   2. Decode oRE obfuscated JS array → PMx (iframe HTML)
+//   3. Extract iframe src (embed.wcostream.com) with file path + time-signed params
+//   4. Convert file path: .flv → .mp4, prepend "neptun/"
+//   5. POST-like GET to getvidlink.php (needs XHR header + embed URL as Referer)
+//   6. Response: { enc, hd, fhd, server } — JWT tokens per quality level
+//   7. GET server/getvid?evid=TOKEN — 302s to actual CDN MP4 URL
 
 async function streams(episodeId) {
   const slug = String(episodeId || "").replace(/^\/|\/$/g, "");
@@ -443,57 +301,79 @@ async function streams(episodeId) {
   const pageHtml = await requestText(episodeUrl).catch(() => null);
   if (!pageHtml) return [];
 
-  // Direct video in episode page (uncommon but possible)
-  const pageSources = extractVideoSources(pageHtml, episodeUrl);
-  if (pageSources.length) return pageSources;
+  // Step 1: Locate and decode obfuscated token array (variable name varies: oRE, YTd, etc.)
+  // Match the array variable that feeds the .forEach(atob decode) loop
+  const oreMatch = pageHtml.match(/var ([A-Za-z][A-Za-z]*)\s*=\s*\[([\s\S]*?)\];\s*\1\.forEach/);
+  if (!oreMatch) return [];
 
-  // Find iframe embed
-  const iframeM =
-    pageHtml.match(/<iframe[^>]+(?:data-litespeed-src|data-src|src)=["']([^"']+)["'][^>]*>/i) ||
-    pageHtml.match(/(?:data-litespeed-src|lazyframe-src)=["']([^"']+)["']/i);
-  if (!iframeM) return [];
+  const constMatch = pageHtml.match(/\)\s*-\s*(\d{6,})\s*\)/);
+  const constant = constMatch ? parseInt(constMatch[1]) : 51973287;
 
-  const iframeSrc = absoluteUrl(iframeM[1], SOURCE.baseUrl);
-  if (!iframeSrc) return [];
-
-  // Fetch embed page
-  const embedHtml = await fetchEmbed(iframeSrc, episodeUrl);
-  if (!embedHtml) {
-    return [{ id: "wcotv-embed-0", label: "WCO Embed", quality: "auto", type: "iframe", url: iframeSrc, headers: { Referer: episodeUrl } }];
-  }
-
-  // Try JWPlayer / direct sources from embed
-  const embedSources = extractVideoSources(embedHtml, iframeSrc);
-  if (embedSources.length) return embedSources;
-
-  // Try getvid API
-  const getvid = await tryGetvid(embedHtml, iframeSrc);
-  if (getvid.length) return getvid;
-
-  // One level of nested iframe
-  const nestedM = embedHtml.match(/<iframe[^>]+(?:data-src|src)=["']([^"']+)["'][^>]*>/i);
-  if (nestedM) {
-    const nestedUrl = absoluteUrl(nestedM[1], iframeSrc);
-    if (nestedUrl) {
-      const nestedHtml = await fetchEmbed(nestedUrl, iframeSrc);
-      if (nestedHtml) {
-        const nestedSources = extractVideoSources(nestedHtml, nestedUrl);
-        if (nestedSources.length) return nestedSources;
-        const nestedGetvid = await tryGetvid(nestedHtml, nestedUrl);
-        if (nestedGetvid.length) return nestedGetvid;
+  const tokens = [...oreMatch[2].matchAll(/"([A-Za-z0-9+/=]+)"/g)].map(m => m[1]);
+  let PMx = "";
+  for (const tok of tokens) {
+    try {
+      const decoded = Buffer.from(tok, "base64").toString("latin1");
+      const digits = decoded.replace(/\D/g, "");
+      if (digits) {
+        const code = parseInt(digits) - constant;
+        if (code > 0 && code < 0x110000) PMx += String.fromCodePoint(code);
       }
-    }
+    } catch {}
+  }
+  if (!PMx) return [];
+
+  // Step 2: Extract iframe src from PMx HTML
+  const iframeM =
+    PMx.match(/src=["']([^"']+embed\.wcostream\.com[^"']+)["']/i) ||
+    PMx.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+  if (!iframeM) return [];
+  const iframeSrc = decodeHtml(iframeM[1]);
+
+  // Step 3: Get file path param, convert .flv → .mp4
+  const fileParamM = iframeSrc.match(/[?&]file=([^&]+)/);
+  if (!fileParamM) return [];
+  const filePath = decodeURIComponent(fileParamM[1]).replace(/\.flv$/i, ".mp4");
+
+  // Step 4: Build getvidlink URL — encode each path segment but keep slashes
+  const encodedPath = filePath.split("/").map(s => encodeURIComponent(s)).join("/");
+  const getvidlinkUrl = `https://embed.wcostream.com/inc/embed/getvidlink.php?v=neptun/${encodedPath}&embed=neptun&fullhd=1`;
+
+  let vidJson;
+  try {
+    const { stdout } = await execFileAsync("curl", [
+      "-s", "-L", "--max-time", "20", "-A", UA,
+      "-H", `Referer: ${iframeSrc}`,
+      "-H", "X-Requested-With: XMLHttpRequest",
+      getvidlinkUrl
+    ], { maxBuffer: 1 * 1024 * 1024, timeout: 25000 });
+    vidJson = JSON.parse(stdout);
+  } catch {
+    return [];
   }
 
-  // Fallback: serve the embed as an iframe
-  return [{
-    id: "wcotv-embed-0",
-    label: "WCO Embed",
-    quality: "auto",
-    type: "iframe",
-    url: iframeSrc,
-    headers: { Referer: episodeUrl }
-  }];
+  const server = vidJson.server || vidJson.cdn;
+  if (!server) return [];
+
+  // Step 5: Build stream entries — getvid endpoint 302s to actual CDN URL
+  const result = [];
+  for (const [key, token, label] of [
+    ["fhd", vidJson.fhd, "1080p"],
+    ["hd", vidJson.hd, "720p"],
+    ["enc", vidJson.enc, "480p"],
+  ]) {
+    if (!token) continue;
+    result.push({
+      id: `wcotv-${key}`,
+      label,
+      quality: label,
+      type: "mp4",
+      url: `${server}/getvid?evid=${encodeURIComponent(token)}`,
+      headers: { Referer: iframeSrc }
+    });
+  }
+
+  return result;
 }
 
 module.exports = { SOURCE, search, catalog, details, episodes, streams };
