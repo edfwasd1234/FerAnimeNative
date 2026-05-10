@@ -12,7 +12,7 @@ final class StreamResolver: ObservableObject {
     @Published var isResolving = false
     @Published var message = "Preparing playback"
 
-    private let sourceOrder = ["anizone", "animeheaven", "anigo", "animekai"]
+    private let sourceOrder = ["anizone", "animeheaven", "wcotv", "animekai"]
 
     func resolve(
         client: ResolverClient,
