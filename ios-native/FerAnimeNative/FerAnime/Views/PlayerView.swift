@@ -5,6 +5,7 @@ struct PlayerView: View {
     @EnvironmentObject private var appState: AppState
     let anime: Anime
     let episode: Episode
+    var preferredLanguage: String = "sub"
 
     @StateObject private var resolver = StreamResolver()
     @State private var playback: ResolvedPlayback?
@@ -71,8 +72,15 @@ struct PlayerView: View {
         playback = result
         playbackMessage = ""
         selectedEmbedIndex = 0
-        selectedStream = result?.direct.first
-        selectedEmbed = result?.direct.first == nil ? result?.embeds.first : nil
+        // For animegg, filter direct streams by the user's sub/dub preference
+        if result?.sourceId == "animegg", let direct = result?.direct, !direct.isEmpty {
+            let keyword = preferredLanguage == "dub" ? "dubbed" : "subbed"
+            let preferred = direct.filter { $0.label.lowercased().contains(keyword) }
+            selectedStream = preferred.first ?? direct.first
+        } else {
+            selectedStream = result?.direct.first
+        }
+        selectedEmbed = selectedStream == nil ? result?.embeds.first : nil
     }
 
     private func advanceToNextEmbed() {

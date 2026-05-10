@@ -4,33 +4,40 @@ struct AnimeDetailView: View {
     @EnvironmentObject private var appState: AppState
     let anime: Anime
     @State private var details: Anime?
-    @State private var episodes: [Episode] = []
     @State private var expanded = false
-    @State private var resolvedAnime: Anime?
+    @State private var selectedSource = "wcotv"
+    @State private var episodesBySource: [String: [Episode]] = [:]
+    @State private var resolvedAnimeBySource: [String: Anime] = [:]
+    @State private var loadingBySource: Set<String> = []
     @State private var preferredLanguage = "sub"
 
-    private var display: Anime { details ?? anime }
-    private var playbackAnime: Anime { resolvedAnime ?? display }
-    private var sourceId: String { playbackAnime.sourceId ?? display.sourceId ?? anime.sourceId ?? "jikan" }
+    private static let sources: [(id: String, label: String)] = [
+        ("wcotv",   "Server 1"),
+        ("animegg", "Server 2")
+    ]
 
-    // True when the source returns distinct sub and dub episode rows (AniGo pattern)
+    private var display: Anime { details ?? anime }
+    private var episodes: [Episode] { episodesBySource[selectedSource] ?? [] }
+    private var playbackAnime: Anime { resolvedAnimeBySource[selectedSource] ?? display }
+    private var isLoadingCurrent: Bool { loadingBySource.contains(selectedSource) }
+
+    // animegg always has both sub/dub at stream level; wcotv has distinct episode rows
     private var hasDubVariants: Bool {
-        episodes.contains { $0.duration?.lowercased() == "dub" }
+        selectedSource == "animegg" ||
+        episodes.contains { ($0.duration ?? "").lowercased() == "dub" }
     }
 
     private var filteredEpisodes: [Episode] {
+        // animegg: sub/dub is at the stream level — don't filter episode rows
+        if selectedSource == "animegg" { return episodes }
         guard hasDubVariants else { return episodes }
-        return episodes.filter { ep in
-            let lang = (ep.duration ?? "sub").lowercased()
-            return lang == preferredLanguage.lowercased()
-        }
+        return episodes.filter { ($0.duration ?? "sub").lowercased() == preferredLanguage.lowercased() }
     }
 
     var body: some View {
         ZStack(alignment: .top) {
             PremiumBackdrop()
 
-            // Blurred ambient banner behind everything
             AsyncImage(url: URL(string: display.banner ?? display.cover ?? "")) { phase in
                 if case .success(let img) = phase {
                     img.resizable().scaledToFill()
@@ -55,6 +62,7 @@ struct AnimeDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .task { await load() }
     }
 
@@ -101,7 +109,6 @@ struct AnimeDetailView: View {
                         if let year = display.year {
                             MetaBadge(systemImage: "calendar", text: String(year))
                         }
-                        MetaBadge(systemImage: "tv", text: sourceId)
                         if let status = display.status {
                             MetaBadge(systemImage: "circle.fill", text: status)
                         }
@@ -120,7 +127,7 @@ struct AnimeDetailView: View {
                     HStack(spacing: 10) {
                         if let first = filteredEpisodes.first ?? episodes.first {
                             NavigationLink {
-                                PlayerView(anime: playbackAnime, episode: first)
+                                PlayerView(anime: playbackAnime, episode: first, preferredLanguage: preferredLanguage)
                             } label: {
                                 Label("Play", systemImage: "play.fill")
                                     .font(.headline.weight(.bold))
@@ -194,12 +201,46 @@ struct AnimeDetailView: View {
 
     private var episodeSection: some View {
         VStack(alignment: .leading, spacing: 14) {
+
+            // ── Server picker ────────────────────────────────────────────────
+            HStack(spacing: 6) {
+                ForEach(Self.sources, id: \.id) { src in
+                    Button {
+                        selectedSource = src.id
+                        Haptics.selection()
+                    } label: {
+                        Text(src.label)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(selectedSource == src.id ? .white : Theme.secondary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(
+                                selectedSource == src.id ? Theme.appleBlue.opacity(0.25) : Color.white.opacity(0.05),
+                                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(
+                                        selectedSource == src.id ? Theme.appleBlue.opacity(0.40) : Color.white.opacity(0.08),
+                                        lineWidth: 0.75
+                                    )
+                            )
+                    }
+                    .buttonStyle(PressScaleStyle())
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+
+            // ── Episodes header: title + sub/dub + download ──────────────────
             HStack {
                 Text("Episodes")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
+                if isLoadingCurrent {
+                    ProgressView().scaleEffect(0.8).padding(.leading, 4)
+                }
                 Spacer()
-                // Sub/Dub toggle — only shown when the source returns distinct sub+dub rows
                 if hasDubVariants {
                     HStack(spacing: 0) {
                         ForEach(["sub", "dub"], id: \.self) { lang in
@@ -240,14 +281,22 @@ struct AnimeDetailView: View {
             }
             .padding(.horizontal, 20)
 
+            // ── Episode list ─────────────────────────────────────────────────
             if episodes.isEmpty {
                 LiquidGlass(cornerRadius: 18) {
                     HStack {
-                        Image(systemName: "film.stack")
-                            .foregroundStyle(Theme.tertiary)
-                        Text("No episodes found from this source.")
-                            .font(.callout)
-                            .foregroundStyle(Theme.secondary)
+                        if isLoadingCurrent {
+                            ProgressView().scaleEffect(0.9)
+                            Text("Loading episodes…")
+                                .font(.callout)
+                                .foregroundStyle(Theme.secondary)
+                        } else {
+                            Image(systemName: "film.stack")
+                                .foregroundStyle(Theme.tertiary)
+                            Text("No episodes found from this source.")
+                                .font(.callout)
+                                .foregroundStyle(Theme.secondary)
+                        }
                     }
                     .padding(18)
                 }
@@ -255,7 +304,7 @@ struct AnimeDetailView: View {
             } else {
                 LazyVStack(spacing: 10) {
                     ForEach(filteredEpisodes) { episode in
-                        EpisodeRow(episode: episode, anime: playbackAnime)
+                        EpisodeRow(episode: episode, anime: playbackAnime, preferredLanguage: preferredLanguage)
                             .padding(.horizontal, 20)
                             .scrollTransition(.interactive, axis: .vertical) { content, phase in
                                 content
@@ -274,42 +323,45 @@ struct AnimeDetailView: View {
         if let saved = appState.showLanguagePreferences[anime.id] {
             preferredLanguage = saved
         }
+        loadingBySource = ["wcotv", "animegg"]
+        await loadSource("wcotv")
+        await loadSource("animegg")
+    }
 
-        for source in ["wcotv", "animegg"] {
-            if let sid = anime.sourceId, sid == source {
-                let detailKey = appState.cacheKey(sid, anime.id, "details")
-                let episodesKey = appState.cacheKey(sid, anime.id, "episodes")
-                if let cached = appState.cachedAnimeDetails[detailKey] {
-                    details = cached
-                } else if let loaded = try? await appState.client.details(sourceId: sid, animeId: anime.id) {
-                    details = loaded
-                    appState.cachedAnimeDetails[detailKey] = loaded
-                }
-                if let cached = appState.cachedEpisodes[episodesKey] {
-                    episodes = cached
-                } else {
-                    let loaded = (try? await appState.client.episodes(sourceId: sid, animeId: anime.id)) ?? []
-                    episodes = loaded
-                    if !loaded.isEmpty { appState.cachedEpisodes[episodesKey] = loaded }
-                }
-                return
+    private func loadSource(_ source: String) async {
+        defer { loadingBySource.remove(source) }
+
+        if let sid = anime.sourceId, sid == source {
+            let detailKey = appState.cacheKey(sid, anime.id, "details")
+            let episodesKey = appState.cacheKey(sid, anime.id, "episodes")
+            if let cached = appState.cachedAnimeDetails[detailKey] {
+                details = cached
+            } else if let loaded = try? await appState.client.details(sourceId: sid, animeId: anime.id) {
+                details = loaded
+                appState.cachedAnimeDetails[detailKey] = loaded
             }
-
-            guard let match = try? await appState.client.search(anime.title, sourceId: source).first else { continue }
-            let matchEpsKey = appState.cacheKey(source, match.id, "episodes")
-            let loaded: [Episode]
-            if let cached = appState.cachedEpisodes[matchEpsKey] {
-                loaded = cached
+            let eps: [Episode]
+            if let cached = appState.cachedEpisodes[episodesKey] {
+                eps = cached
             } else {
-                loaded = (try? await appState.client.episodes(sourceId: source, animeId: match.id)) ?? []
-                if !loaded.isEmpty { appState.cachedEpisodes[matchEpsKey] = loaded }
+                eps = (try? await appState.client.episodes(sourceId: sid, animeId: anime.id)) ?? []
+                if !eps.isEmpty { appState.cachedEpisodes[episodesKey] = eps }
             }
-            if !loaded.isEmpty {
-                resolvedAnime = match
-                episodes = loaded
-                return
-            }
+            episodesBySource[source] = eps
+            return
         }
+
+        guard let match = try? await appState.client.search(anime.title, sourceId: source).first else { return }
+        resolvedAnimeBySource[source] = match
+        let episodesKey = appState.cacheKey(source, match.id, "episodes")
+        let eps: [Episode]
+        if let cached = appState.cachedEpisodes[episodesKey] {
+            eps = cached
+        } else {
+            eps = (try? await appState.client.episodes(sourceId: source, animeId: match.id)) ?? []
+            if !eps.isEmpty { appState.cachedEpisodes[episodesKey] = eps }
+        }
+        episodesBySource[source] = eps
     }
 }
 
@@ -318,13 +370,14 @@ struct AnimeDetailView: View {
 private struct EpisodeRow: View {
     let episode: Episode
     let anime: Anime
+    let preferredLanguage: String
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
         LiquidGlass(cornerRadius: 18, glow: .clear) {
             HStack(spacing: 14) {
                 NavigationLink {
-                    PlayerView(anime: anime, episode: episode)
+                    PlayerView(anime: anime, episode: episode, preferredLanguage: preferredLanguage)
                 } label: {
                     HStack(spacing: 14) {
                         ZStack {
