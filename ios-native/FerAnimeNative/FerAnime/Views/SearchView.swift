@@ -10,7 +10,7 @@ struct SearchView: View {
     private let sources = [
         ("anizone", "AniZone"),
         ("animeheaven", "AnimeHeaven"),
-        ("anigo", "AniGo"),
+        ("wcotv", "WCO.tv"),
         ("animekai", "AnimeKai")
     ]
 
