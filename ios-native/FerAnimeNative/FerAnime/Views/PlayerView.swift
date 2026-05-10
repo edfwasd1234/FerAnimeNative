@@ -13,7 +13,7 @@ struct PlayerView: View {
     @State private var selectedEmbedIndex = 0
     @State private var playbackMessage = ""
 
-    private var sourceId: String { episode.sourceId ?? anime.sourceId ?? "anizone" }
+    private var sourceId: String { episode.sourceId ?? anime.sourceId ?? "wcotv" }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -71,13 +71,8 @@ struct PlayerView: View {
         playback = result
         playbackMessage = ""
         selectedEmbedIndex = 0
-        if let resolvedSourceId = result?.sourceId, ["hianime", "anigo"].contains(resolvedSourceId) {
-            selectedStream = nil
-            selectedEmbed = result?.embeds.first
-        } else {
-            selectedStream = result?.direct.first
-            selectedEmbed = result?.direct.first == nil ? result?.embeds.first : nil
-        }
+        selectedStream = result?.direct.first
+        selectedEmbed = result?.direct.first == nil ? result?.embeds.first : nil
     }
 
     private func advanceToNextEmbed() {

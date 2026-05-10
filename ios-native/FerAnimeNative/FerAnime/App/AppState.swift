@@ -93,7 +93,7 @@ final class AppState: ObservableObject {
         let item = WatchProgress(
             episodeId: episode.id,
             animeId: anime.id,
-            sourceId: episode.sourceId ?? anime.sourceId ?? "anizone",
+            sourceId: episode.sourceId ?? anime.sourceId ?? "wcotv",
             animeTitle: anime.title,
             episodeTitle: episode.title,
             episodeNumber: episode.number,
@@ -111,7 +111,7 @@ final class AppState: ObservableObject {
         let item = DownloadItem(
             id: episode?.id ?? "\(anime.sourceId ?? "source")-\(anime.id)-all",
             animeId: anime.id,
-            sourceId: episode?.sourceId ?? anime.sourceId ?? "anizone",
+            sourceId: episode?.sourceId ?? anime.sourceId ?? "wcotv",
             animeTitle: anime.title,
             episodeId: episode?.id,
             episodeTitle: episode?.title ?? "Entire anime",

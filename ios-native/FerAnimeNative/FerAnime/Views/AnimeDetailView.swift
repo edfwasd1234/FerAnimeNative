@@ -7,8 +7,6 @@ struct AnimeDetailView: View {
     @State private var episodes: [Episode] = []
     @State private var expanded = false
     @State private var resolvedAnime: Anime?
-    @State private var sourceMatches: [Anime] = []
-    @State private var isMatchingSources = false
     @State private var preferredLanguage = "sub"
 
     private var display: Anime { details ?? anime }
@@ -162,7 +160,6 @@ struct AnimeDetailView: View {
     private var contentSection: some View {
         VStack(alignment: .leading, spacing: 24) {
             synopsisSection
-            sourceSection
             episodeSection
         }
         .padding(.top, 20)
@@ -192,65 +189,6 @@ struct AnimeDetailView: View {
                 .padding(18)
             }
             .padding(.horizontal, 20)
-        }
-    }
-
-    private var sourceSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Source")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                if isMatchingSources {
-                    ProgressView().scaleEffect(0.8).padding(.leading, 4)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-
-            if sourceMatches.isEmpty {
-                Text(isMatchingSources ? "Matching sources…" : "No streaming source matched yet.")
-                    .font(.footnote)
-                    .foregroundStyle(Theme.secondary)
-                    .padding(.horizontal, 20)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(sourceMatches) { match in
-                            Button {
-                                Task { await selectSource(match) }
-                            } label: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(match.sourceId ?? "source")
-                                        .font(.caption2.weight(.bold))
-                                        .foregroundStyle(Theme.appleBlue)
-                                        .textCase(.uppercase)
-                                        .tracking(0.8)
-                                    Text(match.title)
-                                        .font(.footnote.weight(.semibold))
-                                        .foregroundStyle(.white)
-                                        .lineLimit(1)
-                                }
-                                .frame(width: 164, alignment: .leading)
-                                .padding(14)
-                                .background(
-                                    resolvedAnime?.id == match.id ? Theme.appleBlue.opacity(0.18) : Theme.panel,
-                                    in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .stroke(
-                                            resolvedAnime?.id == match.id ? Theme.appleBlue.opacity(0.45) : Theme.stroke,
-                                            lineWidth: 0.75
-                                        )
-                                )
-                            }
-                            .buttonStyle(PressScaleStyle())
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                }
-            }
         }
     }
 
@@ -302,7 +240,7 @@ struct AnimeDetailView: View {
             }
             .padding(.horizontal, 20)
 
-            if episodes.isEmpty && !isMatchingSources {
+            if episodes.isEmpty {
                 LiquidGlass(cornerRadius: 18) {
                     HStack {
                         Image(systemName: "film.stack")
@@ -336,7 +274,10 @@ struct AnimeDetailView: View {
         if let saved = appState.showLanguagePreferences[anime.id] {
             preferredLanguage = saved
         }
-        if let sid = anime.sourceId, sid != "jikan" {
+
+        let source = "wcotv"
+
+        if let sid = anime.sourceId, sid == source {
             let detailKey = appState.cacheKey(sid, anime.id, "details")
             let episodesKey = appState.cacheKey(sid, anime.id, "episodes")
             if let cached = appState.cachedAnimeDetails[detailKey] {
@@ -355,61 +296,16 @@ struct AnimeDetailView: View {
             return
         }
 
-        let matchesKey = appState.cacheKey("jikan", anime.id, anime.title.lowercased(), "matches")
-        if let cachedMatches = appState.cachedSourceMatches[matchesKey], !cachedMatches.isEmpty {
-            sourceMatches = cachedMatches
-            if let first = cachedMatches.first,
-               let sid = first.sourceId,
-               let cachedEps = appState.cachedEpisodes[appState.cacheKey(sid, first.id, "episodes")] {
-                resolvedAnime = first
-                episodes = cachedEps
-                return
-            }
-        }
-
-        isMatchingSources = true
-        defer { isMatchingSources = false }
-        if sourceMatches.isEmpty { sourceMatches = [] }
-        for source in ["anizone", "animeheaven", "wcotv", "animekai"] {
-            let match: Anime
-            if let cached = sourceMatches.first(where: { $0.sourceId == source }) {
-                match = cached
-            } else {
-                guard let loaded = try? await appState.client.search(anime.title, sourceId: source).first else { continue }
-                match = loaded
-                sourceMatches.append(loaded)
-            }
-            let episodesKey = appState.cacheKey(source, match.id, "episodes")
-            let sourceEpisodes: [Episode]
-            if let cached = appState.cachedEpisodes[episodesKey] {
-                sourceEpisodes = cached
-            } else {
-                let loaded = (try? await appState.client.episodes(sourceId: source, animeId: match.id)) ?? []
-                sourceEpisodes = loaded
-                if !loaded.isEmpty { appState.cachedEpisodes[episodesKey] = loaded }
-            }
-            if resolvedAnime == nil, !sourceEpisodes.isEmpty {
-                resolvedAnime = match
-                episodes = sourceEpisodes
-            }
-        }
-        if !sourceMatches.isEmpty { appState.cachedSourceMatches[matchesKey] = sourceMatches }
-    }
-
-    private func selectSource(_ match: Anime) async {
-        guard let sid = match.sourceId else { return }
-        isMatchingSources = true
-        defer { isMatchingSources = false }
+        guard let match = try? await appState.client.search(anime.title, sourceId: source).first else { return }
         resolvedAnime = match
-        let episodesKey = appState.cacheKey(sid, match.id, "episodes")
+        let episodesKey = appState.cacheKey(source, match.id, "episodes")
         if let cached = appState.cachedEpisodes[episodesKey] {
             episodes = cached
         } else {
-            let loaded = (try? await appState.client.episodes(sourceId: sid, animeId: match.id)) ?? []
+            let loaded = (try? await appState.client.episodes(sourceId: source, animeId: match.id)) ?? []
             episodes = loaded
             if !loaded.isEmpty { appState.cachedEpisodes[episodesKey] = loaded }
         }
-        Haptics.impact(.light)
     }
 }
 

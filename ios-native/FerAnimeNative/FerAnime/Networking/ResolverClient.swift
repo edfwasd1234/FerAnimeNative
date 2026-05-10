@@ -26,11 +26,11 @@ final class ResolverClient: ObservableObject {
 
     var baseURL: URL? { resolvedBaseURL }
 
-    func catalog(section: String, sourceId: String = "anizone") async throws -> [Anime] {
+    func catalog(section: String, sourceId: String = "wcotv") async throws -> [Anime] {
         try await get("/api/anime/catalog", query: ["sourceId": sourceId, "section": section], as: CatalogResponse.self).items
     }
 
-    func search(_ query: String, sourceId: String = "anizone") async throws -> [Anime] {
+    func search(_ query: String, sourceId: String = "wcotv") async throws -> [Anime] {
         try await get("/api/anime/search", query: ["sourceId": sourceId, "q": query], as: SearchResponse.self).items
     }
 
