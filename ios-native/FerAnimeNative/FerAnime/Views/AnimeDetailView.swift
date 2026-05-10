@@ -370,7 +370,7 @@ struct AnimeDetailView: View {
         isMatchingSources = true
         defer { isMatchingSources = false }
         if sourceMatches.isEmpty { sourceMatches = [] }
-        for source in ["anizone", "animeheaven", "anigo", "animekai"] {
+        for source in ["anizone", "animeheaven", "wcotv", "animekai"] {
             let match: Anime
             if let cached = sourceMatches.first(where: { $0.sourceId == source }) {
                 match = cached
