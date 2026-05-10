@@ -277,6 +277,19 @@ async function episodes(itemId) {
     }
   }
 
+  // Filter out sidebar-injected episodes from unrelated shows.
+  // wco.tv dynamically adds trending content to the sidebar which contaminates the list.
+  const idWords = itemId.split("-").filter(w => w.length >= 4);
+  if (idWords.length > 0) {
+    const relevant = out.filter(e => idWords.some(w => e.id.toLowerCase().includes(w)));
+    if (relevant.length > 0) {
+      return relevant.sort((a, b) => {
+        if (a.number !== b.number) return a.number - b.number;
+        return (a.duration === "Dubbed" ? 1 : 0) - (b.duration === "Dubbed" ? 1 : 0);
+      });
+    }
+  }
+
   return out.sort((a, b) => {
     if (a.number !== b.number) return a.number - b.number;
     return (a.duration === "Dubbed" ? 1 : 0) - (b.duration === "Dubbed" ? 1 : 0);
