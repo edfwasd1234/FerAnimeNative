@@ -210,6 +210,7 @@ Windows cannot compile or sign native iOS apps locally. Use one of these options
 - A Mac with Xcode.
 - A cloud Mac.
 - GitHub Actions for unsigned build artifacts.
+- Xtool on, sdk 26.4.1 and latest swift version
 
 ### Build on macOS
 
@@ -320,6 +321,7 @@ Thanks to the maintainers and contributors of the anime CLI/app ecosystem whose 
 - [`roshancodespace/ShonenX`](https://github.com/roshancodespace/ShonenX)
 - [`MangaKatana`](https://mangakatana.com/) for manga catalog and reader source research.
 - [`Jikan`](https://jikan.moe/) for the public MyAnimeList metadata API.
+- [`Xtool`](https://github.com/xtool-org/xtool) for compiling into ipa (better than Git compiler since it supports newer sdk's)
 
 Respect to everyone building open-source media tooling. This project is for personal learning and private use.
 
